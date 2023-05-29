@@ -42,4 +42,12 @@ def ReluOp : ComputeDAG_Op<"relu_elementwise", [NoSideEffect]> {
   // let hasFolder = 1;
 }
 
+def DelimiterOp : ComputeDAG_Op<"delimiter", [NoSideEffect]> {
+  let summary = "";
+  let description = [{
+  }];
+
+  let assemblyFormat = "attr-dict";
+}
+
 #endif // ComputeDAG_OPS

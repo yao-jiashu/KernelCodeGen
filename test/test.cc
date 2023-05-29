@@ -16,8 +16,11 @@ int main(int argc, char* argv[]) {
   graph.relu(gemmOp);
   graph.dumpAndVerify();
 
+  std::cout << "-------------------------------------------\n";
+
   graph.operatorImpl();
   graph.dumpAndVerify();
+  std::cout << "-------------------------------------------\n";
 
   kcm.setTarget(KC::Target::CUDA);
   

@@ -33,6 +33,7 @@ public:
         builder.getUnknownLoc(),
         mlir::Optional<mlir::StringRef>(graphName));
       builder.setInsertionPointToEnd(module.getBody());
+      registerElementMapping();
   }
   void dumpAndVerify() {
       module->dump();
@@ -41,9 +42,8 @@ public:
           assert(false);
       }
   }
-
+  void registerElementMapping();
   void operatorImpl();
-  void operatorFuse();
 
   DType getDataType(std::string dtype);
   // operations

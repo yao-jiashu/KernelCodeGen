@@ -60,17 +60,21 @@ ComputeDAG::GEMM ComputeDAG::gemm(ComputeDAG::Operand lhs, ComputeDAG::Operand r
   auto A = mlir::dyn_cast<mlir::Value>(lhs->getResult(0));
   auto B = mlir::dyn_cast<mlir::Value>(rhs->getResult(0));
 
-  return builder.create<ComputeDAG::GEMM>(
+  auto gemmOp = builder.create<ComputeDAG::GEMM>(
     builder.getUnknownLoc(),
     CShape, A, B);
+  builder.create<mlir::compute_dag::DelimiterOp>(builder.getUnknownLoc());
+  return gemmOp;
 }
 
 ComputeDAG::Relu ComputeDAG::relu(ComputeDAG::Operand input) {
   auto inputTensor = mlir::dyn_cast<mlir::Value>(input->getResult(0));
   auto outputShape = input->getResult(0).getType();
-  return builder.create<ComputeDAG::Relu>(
+  auto reluOp =  builder.create<ComputeDAG::Relu>(
     builder.getUnknownLoc(), 
     outputShape, inputTensor);
+  builder.create<mlir::compute_dag::DelimiterOp>(builder.getUnknownLoc());
+  return reluOp;
 }
 
 }
