@@ -1,16 +1,18 @@
+file(GLOB compute_dag_src ./ComputeDAG/*.cc)
 file(GLOB graph_tune_src ./GraphTune/*.cc)
-# file(GLOB_RECURSE auto_schedule_src ./AutoSchedule *.cc)
-# file(GLOB_RECURSE auto_tune_src ./AutoTune *.cc)
-# file(GLOB_RECURSE codegen_src ./Codegen *.cc)
+file(GLOB scheduler_src ./Scheduler/*.cc)
+file(GLOB auto_tune_src ./AutoTune/*.cc)
+file(GLOB codegen_src ./CodeGen/*.cc)
 
 # ComputeDAG dialect
-add_subdirectory(GraphTune)
+add_subdirectory(IR)
 
 add_library(kcm_runtime 
+            ${compute_dag_src}
             ${graph_tune_src} 
-            # ${auto_schedule_src} 
-            # ${auto_tune_src} 
-            # ${codegen_src}
+            ${scheduler_src} 
+            ${auto_tune_src} 
+            ${codegen_src}
             KernelCodegen.cc)
 
 #target_compile_options(kcm_runtime PRIVATE -frtti)

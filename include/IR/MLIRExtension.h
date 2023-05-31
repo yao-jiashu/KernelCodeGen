@@ -1,12 +1,12 @@
 #pragma once
-#include "MLIR.h"
-
-// KernelCodegen Dialect
-#include "GraphTune/ComputeDAG.h"
+#include "IR/MLIR.h"
+#include "IR/ComputeDAG/ComputeDAGDialect.h"
+#include "IR/ComputeDAG/ComputeDAGOps.h"
 
 namespace KernelCodegen {
+  
+using Context = mlir::MLIRContext;
 
-// API for init MLIR env
 inline void initContext(Context & context) {
   context.getOrLoadDialect<mlir::compute_dag::ComputeDAGDialect>();
   context.getOrLoadDialect<mlir::AffineDialect>();

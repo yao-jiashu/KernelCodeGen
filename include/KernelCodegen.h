@@ -1,11 +1,14 @@
-#include "MLIREnhance.h"
+#pragma once
+#include "ComputeDAG.h"
+#include "GraphTune.h"
+#include "AutoConfig.h"
+#include "Scheduler.h"
+#include "CodeGen.h"
 
 #include <string>
 #include <initializer_list>
 
 namespace KernelCodegen {
-
-class ComputeDAG;
 
 enum class Target {
   CUDA = 0,
@@ -15,17 +18,20 @@ enum class Target {
 class KernelCodegenMachine {
 public:
   
-  KernelCodegenMachine() {initContext(context);}
-
+  KernelCodegenMachine() = default;
+  KernelCodegenMachine(ComputeDAG* graph_) : graph(graph_) {}
   void setTarget(Target target_) { target = target_;}
-  Context& getContext() { return context; }
-  std::string codegen(ComputeDAG & dag) {return {};}
-  void autoTune(ComputeDAG & dag) {}
-  void autoSchedule(ComputeDAG & dag) {}
-  void graphTune(ComputeDAG & dag) {}
+  void setTask(ComputeDAG* graph_) { 
+    graph = graph_;
+  }
+  std::string codeGen() {return {};}
+  void autoTune() {}
+  void autoSchedule();
+  void graphTune() {}
 
 private:
-  Context context;
+  ComputeDAG* graph {nullptr};
+  Scheduler scheduler;
   Target target {Target::CUDA};
 };
 

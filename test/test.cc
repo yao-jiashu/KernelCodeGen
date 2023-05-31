@@ -6,8 +6,9 @@ using KCM = KC::KernelCodegenMachine;
 
 int main(int argc, char* argv[]) {
 
-  KCM kcm;
-  KC::ComputeDAG graph("fuse_gemm_relu", kcm.getContext());
+  KC::Context ctx;
+  KC::initContext(ctx);
+  KC::ComputeDAG graph("fuse_gemm_relu", ctx);
   int m = 4096, n = 4096, k = 4096;
   // define the inputs first
   auto A = graph.placeholder({m, k}, "float32", KC::MemorySpace::global);
@@ -16,25 +17,30 @@ int main(int argc, char* argv[]) {
   graph.relu(gemmOp);
   graph.dumpAndVerify();
 
-  std::cout << "-------------------------------------------\n";
+  llvm::errs() << "-------------------------------------------\n";
 
   graph.operatorImpl();
   graph.dumpAndVerify();
-  std::cout << "-------------------------------------------\n";
+  llvm::errs() << "-------------------------------------------\n";
+
+
+  KCM kcm(&graph);
 
   kcm.setTarget(KC::Target::CUDA);
   
-  std::cout << kcm.codegen(graph);
+  llvm::errs() << kcm.codeGen();
 
-  kcm.autoTune(graph);
-  std::cout << kcm.codegen(graph);
+  kcm.autoTune();
+  llvm::errs() << kcm.codeGen();
 
-  kcm.autoSchedule(graph);
-  kcm.autoTune(graph);
-  std::cout << kcm.codegen(graph);
+  kcm.autoSchedule();
+  kcm.autoTune();
+  graph.dumpAndVerify();
+  llvm::errs() << "-------------------------------------------\n";
+  llvm::errs() << kcm.codeGen();
 
-  kcm.graphTune(graph);
-  kcm.autoSchedule(graph);
-  kcm.autoTune(graph);
-  std::cout << kcm.codegen(graph);
+  // kcm.graphTune();
+  // kcm.autoSchedule();
+  // kcm.autoTune();
+  // llvm::errs() << kcm.codeGen();
 }

@@ -1,9 +1,13 @@
-#include "MLIREnhance.h"
+// #include "KernelCodegen.h"
+#include "ComputeDAG.h"
 #include "utils.h"
 #include <memory>
 #include <vector>
 #include <unordered_map>
 #include <string>
+
+// m, n, k can be attribute of compute_dag op
+// all2all, element-wise, reduce, broadcast can also be value of memory-mapping attribute
 
 // build a rule to implement one op
 // for example, the outer loop num is related to output's shape
@@ -13,11 +17,13 @@ namespace {
 using namespace mlir;
 using namespace KernelCodegen;
 using FuncOpMap = std::unordered_map<std::string, func::FuncOp>;
-using OperatorElementMapping = 
-        function_ref<void(OpBuilder &, Location, ValueRange, 
+using OperatorElementMapping = llvm::function_ref<void(OpBuilder &, Location, ValueRange)>;
+using tmp = 
+        llvm::function_ref<void(OpBuilder &, Location, ValueRange, 
                           ValueRange, const std::vector<int> &)>;
 using OperatorElementMappingPool = 
-        std::unordered_map<std::string, OperatorElementMapping>;
+        // std::unordered_map<std::string, OperatorElementMapping>;
+                std::unordered_map<std::string, tmp>;
 
 static FuncOpMap funcCache;
 
@@ -37,8 +43,11 @@ static AffineForOp
 buildAffineLoopFromConstants(OpBuilder &builder, Location loc, int64_t lb,
                              int64_t ub, int64_t step,
                              AffineForOp::BodyBuilderFn bodyBuilderFn) {
-  return builder.create<AffineForOp>(loc, lb, ub, step, /*iterArgs=*/llvm::None,
+  auto forOp = builder.create<AffineForOp>(loc, lb, ub, step, /*iterArgs=*/llvm::None,
                                      bodyBuilderFn);
+  forOp->setAttr(std::string("compute_dag.loop_attr"),
+    builder.getStringAttr("spatial"));
+  return forOp;
 }
 
 /// Creates an affine loop from the bounds that may or may not be constants.
@@ -51,9 +60,12 @@ buildAffineLoopFromValues(OpBuilder &builder, Location loc, Value lb, Value ub,
   if (lbConst && ubConst)
     return buildAffineLoopFromConstants(builder, loc, lbConst.value(),
                                         ubConst.value(), step, bodyBuilderFn);
-  return builder.create<AffineForOp>(loc, lb, builder.getDimIdentityMap(), ub,
+  auto forOp = builder.create<AffineForOp>(loc, lb, builder.getDimIdentityMap(), ub,
                                      builder.getDimIdentityMap(), step,
                                      /*iterArgs=*/llvm::None, bodyBuilderFn);
+  forOp->setAttr(std::string("compute_dag.loop_attr"),
+    builder.getStringAttr("spatial"));
+  return forOp;
 }
 
 /// Builds an affine loop nest, using "loopCreatorFn" to create individual loop
@@ -73,7 +85,7 @@ static void buildSpatialLoopNestImpl(
   OpBuilder::InsertionGuard guard(builder);
   if (lbs.empty()) {
     if (bodyBuilderFn)
-      bodyBuilderFn(builder, loc, ValueRange(), tensors, extraParam);
+      bodyBuilderFn(builder, loc, ValueRange()/*, tensors, extraParam*/);
     return;
   }
 
@@ -88,7 +100,7 @@ static void buildSpatialLoopNestImpl(
       // In the innermost loop, call the body builder.
       if (i == e - 1 && bodyBuilderFn) {
         OpBuilder::InsertionGuard nestedGuard(nestedBuilder);
-        bodyBuilderFn(nestedBuilder, nestedLoc, ivs, tensors, extraParam);
+        bodyBuilderFn(nestedBuilder, nestedLoc, ivs/*, tensors, extraParam*/);
       }
       nestedBuilder.create<AffineYieldOp>(nestedLoc);
     };
@@ -101,13 +113,15 @@ static void buildSpatialLoopNestImpl(
 }
 
 void buildSpatialLoopNest(
-    OpBuilder &builder, Location loc, ValueRange lbs, ValueRange ubs,
+    OpBuilder &builder, Location loc, 
+    ArrayRef<int64_t> lbs,
+    ArrayRef<int64_t> ubs, 
     ArrayRef<int64_t> steps,
     ValueRange tensors, 
     const std::vector<int>& extraParam,
     OperatorElementMapping bodyBuilderFn) {
   buildSpatialLoopNestImpl(builder, loc, lbs, ubs, steps, tensors, extraParam, bodyBuilderFn,
-                          buildAffineLoopFromValues);
+                          buildAffineLoopFromConstants);
 }
 
 
@@ -162,8 +176,6 @@ void operatorElementMapping() {
     auto loopCarriedVar = ld_c.getResult();
     auto forOp = nestedBuilder.create<AffineForOp>(nestedBuilder.getUnknownLoc(), 
                     0, K, 1, /*iterArgs=lvm::None*/ ValueRange({loopCarriedVar}), kLoopBody);
-        // module->setAttr(std::string("compute_dag.gemm_kernel"), 
-    //   builder.getStringAttr("True"));
     forOp->setAttr(std::string("compute_dag.loop_attr"),
         nestedBuilder.getStringAttr("reduction"));
     nestedBuilder.create<AffineStoreOp>(
@@ -212,9 +224,6 @@ struct GEMMImplement :
 
 void GEMMImplement::runOnOperation() {
    ModuleOp module = getOperation();
-  //  if (module->hasAttr("compute_dag.gemm_kernel")) {
-  //   return;
-  //  }
    // The walker proceeds in pre-order to process
    module.walk<WalkOrder::PreOrder>([&](compute_dag::GEMMOp gemmOp) {
     auto outType = gemmOp.getResult().getType();
@@ -246,8 +255,6 @@ void GEMMImplement::runOnOperation() {
     if (funcCache.find(funcName) != funcCache.end())
       return;
     OpBuilder builder(module.getContext());
-    // module->setAttr(std::string("compute_dag.gemm_kernel"), 
-    //   builder.getStringAttr("True"));
 
     builder.setInsertionPointToEnd(module.getBody());
     OpBuilder::InsertionGuard guard(builder);
@@ -273,39 +280,73 @@ void GEMMImplement::runOnOperation() {
     builder.setInsertionPointToStart(&bodyBlock);  
   
     // // build loops
-    SmallVector<int64_t, 3> lowerBounds(3, /*Value=*/0);
-    SmallVector<int64_t, 3> steps(3, /*Value=*/1);
-    SmallVector<int64_t, 3> upperBounds({m, n, k});
-    buildAffineLoopNest(
-      builder, builder.getUnknownLoc(), lowerBounds, upperBounds, steps,
+    SmallVector<int64_t, 2> lowerBounds(2, /*Value=*/0);
+    SmallVector<int64_t, 2> steps(2, /*Value=*/1);
+    SmallVector<int64_t, 2> upperBounds({m, n});
+    buildSpatialLoopNest(
+      builder, builder.getUnknownLoc(), lowerBounds, upperBounds, steps, {}, {},
       [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
         auto C = operands[0];
         auto A = operands[1];
         auto B = operands[2];
         auto i = ivs[0];
         auto j = ivs[1];
-        auto k = ivs[2];
-        auto ld_a = nestedBuilder.create<AffineLoadOp>(
-          nestedBuilder.getUnknownLoc(), A, ValueRange({i, k}));
-        auto ld_b = nestedBuilder.create<AffineLoadOp>(
-          nestedBuilder.getUnknownLoc(), B, ValueRange({k, j}));
-        auto ld_accum = nestedBuilder.create<AffineLoadOp>(
+
+        int K = k;
+        auto CType = C.getType();
+        auto dtype = CType.dyn_cast<MemRefType>().getElementType();
+
+
+
+        auto kLoopBody = [&](OpBuilder &builder, Location nestedLoc, Value iv,
+                            ValueRange iterArgs) {
+          OpBuilder::InsertionGuard nestedGuard(builder);
+          auto k = iv;
+          auto ld_a = builder.create<AffineLoadOp>(
+                        builder.getUnknownLoc(), A, ValueRange({i, k}));
+          auto ld_b = builder.create<AffineLoadOp>(
+                        builder.getUnknownLoc(), B, ValueRange({k, j}));
+          auto ld_c = nestedBuilder.create<AffineLoadOp>(
+                nestedBuilder.getUnknownLoc(), C, ValueRange({i, j}));
+          if (dtype.isa<FloatType>()) {
+            auto mul = builder.create<arith::MulFOp>(
+                        builder.getUnknownLoc(), ld_a, ld_b);
+            auto add = builder.create<arith::AddFOp>(
+                        builder.getUnknownLoc(), mul, ld_c);
+            nestedBuilder.create<AffineStoreOp>(
+              nestedBuilder.getUnknownLoc(), add, C, ValueRange({i, j}));
+          }
+          else {
+            auto mul = builder.create<arith::MulIOp>(
+              builder.getUnknownLoc(), ld_a, ld_b);
+            auto add = builder.create<arith::AddIOp>(
+              builder.getUnknownLoc(), mul, ld_c);
+            nestedBuilder.create<AffineStoreOp>(
+              nestedBuilder.getUnknownLoc(), add, C, ValueRange({i, j}));
+          }
+          builder.create<AffineYieldOp>(builder.getUnknownLoc());
+        };
+        auto forOp = nestedBuilder.create<AffineForOp>(nestedBuilder.getUnknownLoc(), 
+                        0, K, 1, /*iterArgs=lvm::None*/ ValueRange({}), kLoopBody);
+        forOp->setAttr(std::string("compute_dag.loop_attr"),
+            nestedBuilder.getStringAttr("reduction"));
+        auto ld_element = nestedBuilder.create<AffineLoadOp>(
           nestedBuilder.getUnknownLoc(), C, ValueRange({i, j}));
         if (dtype.isa<FloatType>()) {
-          auto mul = nestedBuilder.create<arith::MulFOp>(
-            nestedBuilder.getUnknownLoc(), ld_a, ld_b);
-          auto add = nestedBuilder.create<arith::AddFOp>(
-            nestedBuilder.getUnknownLoc(), mul, ld_accum);
+          auto zeroFloat = nestedBuilder.create<arith::ConstantFloatOp>(
+            nestedBuilder.getUnknownLoc(), llvm::APFloat(0.0f), dtype.dyn_cast<FloatType>());
+          auto max = nestedBuilder.create<arith::MaxFOp>(
+            nestedBuilder.getUnknownLoc(), zeroFloat, ld_element);
           nestedBuilder.create<AffineStoreOp>(
-            nestedBuilder.getUnknownLoc(), add, C, ValueRange({i, j}));
+            nestedBuilder.getUnknownLoc(), max, C, ValueRange({i, j}));
         }
         else {
-          auto mul = nestedBuilder.create<arith::MulIOp>(
-            nestedBuilder.getUnknownLoc(), ld_a, ld_b);
-          auto add = nestedBuilder.create<arith::AddIOp>(
-            nestedBuilder.getUnknownLoc(), mul, ld_accum);
+          auto zeroInteger = nestedBuilder.create<arith::ConstantIntOp>(
+            nestedBuilder.getUnknownLoc(), 0UL, dtype);
+          auto max = nestedBuilder.create<arith::MaxSIOp>(
+            nestedBuilder.getUnknownLoc(), zeroInteger, ld_element);
           nestedBuilder.create<AffineStoreOp>(
-            nestedBuilder.getUnknownLoc(), add, C, ValueRange({i, j}));            
+            nestedBuilder.getUnknownLoc(), max, C, ValueRange({i, j}));        
         }
       }
     );
@@ -423,6 +464,8 @@ void OperatorImplement::runOnOperation() {
 
   std::vector<std::vector<Operation*>> kernelList;
   std::vector<Operation*> kernel;
+  std::vector<std::vector<Value>> tensorsList;
+  std::vector<Value> tensors;
   for (auto iter = operations.begin(); iter != operations.end(); iter++) {
     auto& op = *iter;
     if (op.getDialect()->getNamespace() == "compute_dag") {
@@ -438,140 +481,64 @@ void OperatorImplement::runOnOperation() {
     }
   }
   for (auto& kernel : kernelList) {
-    MemRefType memoryType;
-    std::vector<int> extraParams;
-    if (isa<compute_dag::GEMMOp>(*(kernel[0]))) {
-      auto gemmOp = dyn_cast<compute_dag::GEMMOp>(*(kernel[0]));
-      memoryType = gemmOp.getResult().getType().dyn_cast<MemRefType>();
-      int k = gemmOp.getOperands()[0].getType().dyn_cast<MemRefType>().getShape()[1];
-      extraParams.push_back(k);
-    }
-    else if (isa<compute_dag::ReluOp>(*(kernel[0]))) {
-      auto reluOp = dyn_cast<compute_dag::ReluOp>(*(kernel[0]));
-      memoryType = reluOp.getResult().getType().dyn_cast<MemRefType>();
-    }
-    int m = memoryType.getShape()[0];
-    int n = memoryType.getShape()[1];
+    // MemRefType memoryType;
+    // std::vector<int> extraParams;
+    // if (isa<compute_dag::GEMMOp>(*(kernel[0]))) {
+    //   auto gemmOp = dyn_cast<compute_dag::GEMMOp>(*(kernel[0]));
+    //   memoryType = gemmOp.getResult().getType().dyn_cast<MemRefType>();
+    //   int k = gemmOp.getOperands()[0].getType().dyn_cast<MemRefType>().getShape()[1];
+    //   extraParams.push_back(k);
+    // }
+    // else if (isa<compute_dag::ReluOp>(*(kernel[0]))) {
+    //   auto reluOp = dyn_cast<compute_dag::ReluOp>(*(kernel[0]));
+    //   memoryType = reluOp.getResult().getType().dyn_cast<MemRefType>();
+    // }
+    // int m = memoryType.getShape()[0];
+    // int n = memoryType.getShape()[1];
 
-    OpBuilder builder(module.getContext());
+    // OpBuilder builder(module.getContext());
 
-    SmallVector<int64_t, 2> lowerBounds(2, /*Value=*/0);
-    SmallVector<int64_t, 2> steps(2, /*Value=*/1);
-    SmallVector<int64_t, 2> upperBounds({m, n});
+    // SmallVector<int64_t, 2> lowerBounds(2, /*Value=*/0);
+    // SmallVector<int64_t, 2> steps(2, /*Value=*/1);
+    // SmallVector<int64_t, 2> upperBounds({m, n});
 
-    buildSpatialLoopNest(builder, builder.getUnknownLoc(), 
-      lowerBounds, upperBounds, steps,
-      
-      [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs, 
-          ValueRange tensors, const std::vector<int>& extraParam) {
-      }
-      OperatorElementMapping bodyBuilderFn, 
-      ValueRange tensors, 
-      const std::vector<int>& extraParam)
-    buildAffineLoopNest(
-      builder, builder.getUnknownLoc(), lowerBounds, upperBounds, steps,
-      [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
-        auto tensor = operands[0];
-        auto i = ivs[0];
-        auto j = ivs[1];
-        auto ld_element = nestedBuilder.create<AffineLoadOp>(
-          nestedBuilder.getUnknownLoc(), tensor, ValueRange({i, j}));
-        if (dtype.isa<FloatType>()) {
-          auto zeroFloat = nestedBuilder.create<arith::ConstantFloatOp>(
-            nestedBuilder.getUnknownLoc(), llvm::APFloat(0.0f), dtype.dyn_cast<FloatType>());
-          auto max = nestedBuilder.create<arith::MaxFOp>(
-            nestedBuilder.getUnknownLoc(), zeroFloat, ld_element);
-          nestedBuilder.create<AffineStoreOp>(
-            nestedBuilder.getUnknownLoc(), max, tensor, ValueRange({i, j}));
-        }
-        else {
-          auto zeroInteger = nestedBuilder.create<arith::ConstantIntOp>(
-            nestedBuilder.getUnknownLoc(), 0UL, dtype);
-          auto max = nestedBuilder.create<arith::MaxSIOp>(
-            nestedBuilder.getUnknownLoc(), zeroInteger, ld_element);
-          nestedBuilder.create<AffineStoreOp>(
-            nestedBuilder.getUnknownLoc(), max, tensor, ValueRange({i, j}));        
-        }
-      }
-    );
+    // buildSpatialLoopNest(builder, builder.getUnknownLoc(), 
+    //   lowerBounds, upperBounds, steps,
+
+    //   [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs, 
+    //       ValueRange tensors, const std::vector<int>& extraParam) {
+    //   }
+    //   OperatorElementMapping bodyBuilderFn, 
+    //   ValueRange tensors, 
+    //   const std::vector<int>& extraParam)
+    // buildAffineLoopNest(
+    //   builder, builder.getUnknownLoc(), lowerBounds, upperBounds, steps,
+    //   [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
+    //     auto tensor = operands[0];
+    //     auto i = ivs[0];
+    //     auto j = ivs[1];
+    //     auto ld_element = nestedBuilder.create<AffineLoadOp>(
+    //       nestedBuilder.getUnknownLoc(), tensor, ValueRange({i, j}));
+    //     if (dtype.isa<FloatType>()) {
+    //       auto zeroFloat = nestedBuilder.create<arith::ConstantFloatOp>(
+    //         nestedBuilder.getUnknownLoc(), llvm::APFloat(0.0f), dtype.dyn_cast<FloatType>());
+    //       auto max = nestedBuilder.create<arith::MaxFOp>(
+    //         nestedBuilder.getUnknownLoc(), zeroFloat, ld_element);
+    //       nestedBuilder.create<AffineStoreOp>(
+    //         nestedBuilder.getUnknownLoc(), max, tensor, ValueRange({i, j}));
+    //     }
+    //     else {
+    //       auto zeroInteger = nestedBuilder.create<arith::ConstantIntOp>(
+    //         nestedBuilder.getUnknownLoc(), 0UL, dtype);
+    //       auto max = nestedBuilder.create<arith::MaxSIOp>(
+    //         nestedBuilder.getUnknownLoc(), zeroInteger, ld_element);
+    //       nestedBuilder.create<AffineStoreOp>(
+    //         nestedBuilder.getUnknownLoc(), max, tensor, ValueRange({i, j}));        
+    //     }
+    //   }
+    // );
 
   }
-  // The walker proceeds in pre-order to process
-  module.walk<WalkOrder::PreOrder>([&](compute_dag::ReluOp reluOp) {
-    auto outType = reluOp.getResult().getType();
-    int64_t m {-1}, n {-1};
-    Type dtype;
-    if(outType.isa<MemRefType>()) {
-      auto outShape = outType.dyn_cast<MemRefType>();
-      m = outShape.getShape()[0];
-      n = outShape.getShape()[1];
-      dtype = outShape.getElementType();
-    }
-    else {
-      llvm::errs() << "Unsupported tensor type of the output of the Relu.";
-      return;
-    }
-
-    auto funcName = ReluName(m, n) + "_kernel";
-    if (funcCache.find(funcName) != funcCache.end()) {
-      return;
-    }
-    OpBuilder builder(module.getContext());
-
-    builder.setInsertionPointToEnd(module.getBody());
-    OpBuilder::InsertionGuard guard(builder);
-
-    auto int32Type = builder.getI32Type();
-    std::vector<Type> typesArray 
-      {outType, int32Type, int32Type};
-    ArrayRef<Type> paramTypes(typesArray);
-    auto functionType = builder.getFunctionType(TypeRange(paramTypes), llvm::None);
-    auto func = builder.create<func::FuncOp>(
-      builder.getUnknownLoc(), StringRef(funcName), functionType);
-    
-    funcCache[funcName] = func;
-
-    func->getRegion(0).push_back(new Block);
-    Block &bodyBlock = func.front();
-    int nums = static_cast<int>(paramTypes.size());
-    for (int i = 0; i < nums; i++ ) {
-      bodyBlock.addArguments(paramTypes[i], builder.getUnknownLoc());
-    }
-    ValueRange operands = bodyBlock.getArguments();
-    builder.setInsertionPointToStart(&bodyBlock);  
-  
-    // // build loops
-    SmallVector<int64_t, 2> lowerBounds(2, /*Value=*/0);
-    SmallVector<int64_t, 2> steps(2, /*Value=*/1);
-    SmallVector<int64_t, 2> upperBounds({m, n});
-    buildAffineLoopNest(
-      builder, builder.getUnknownLoc(), lowerBounds, upperBounds, steps,
-      [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
-        auto tensor = operands[0];
-        auto i = ivs[0];
-        auto j = ivs[1];
-        auto ld_element = nestedBuilder.create<AffineLoadOp>(
-          nestedBuilder.getUnknownLoc(), tensor, ValueRange({i, j}));
-        if (dtype.isa<FloatType>()) {
-          auto zeroFloat = nestedBuilder.create<arith::ConstantFloatOp>(
-            nestedBuilder.getUnknownLoc(), llvm::APFloat(0.0f), dtype.dyn_cast<FloatType>());
-          auto max = nestedBuilder.create<arith::MaxFOp>(
-            nestedBuilder.getUnknownLoc(), zeroFloat, ld_element);
-          nestedBuilder.create<AffineStoreOp>(
-            nestedBuilder.getUnknownLoc(), max, tensor, ValueRange({i, j}));
-        }
-        else {
-          auto zeroInteger = nestedBuilder.create<arith::ConstantIntOp>(
-            nestedBuilder.getUnknownLoc(), 0UL, dtype);
-          auto max = nestedBuilder.create<arith::MaxSIOp>(
-            nestedBuilder.getUnknownLoc(), zeroInteger, ld_element);
-          nestedBuilder.create<AffineStoreOp>(
-            nestedBuilder.getUnknownLoc(), max, tensor, ValueRange({i, j}));        
-        }
-      }
-    );
-    builder.create<func::ReturnOp>(builder.getUnknownLoc());
-   });
 }
 
 std::unique_ptr<OperationPass<ModuleOp>> OperatorImplementPass() {
@@ -588,20 +555,21 @@ void ComputeDAG::registerElementMapping() {
 
 void ComputeDAG::operatorImpl() {
   flushFuncCache(module);
-  // mlir::PassManager pm(module.getContext());
-  // pm.addPass(GEMMImplementPass());
-  // if (failed(pm.run(module))) {
-  //   llvm::errs() << "Implement GEMM failed.";
-  // }
+  mlir::PassManager pm(module.getContext());
+  pm.addPass(GEMMImplementPass());
+  if (failed(pm.run(module))) {
+    llvm::errs() << "Implement GEMM failed.";
+  }
   // pm.addPass(ReluImplementPass());
   // if (failed(pm.run(module))) {
   //   llvm::errs() << "Implement Relu failed.";
   // }
-  mlir::PassManager pm(module.getContext());
-  pm.addPass(OperatorImplementPass());
-  if (failed(pm.run(module))) {
-    llvm::errs() << "Implement Operators failed.";
-  }
+  ///TODO:
+  // mlir::PassManager pm(module.getContext());
+  // pm.addPass(OperatorImplementPass());
+  // if (failed(pm.run(module))) {
+  //   llvm::errs() << "Implement Operators failed.";
+  // }
 }
 
 }

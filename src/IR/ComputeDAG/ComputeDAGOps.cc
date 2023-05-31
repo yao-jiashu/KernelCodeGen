@@ -1,9 +1,9 @@
-#include "GraphTune/ComputeDAG/ComputeDAGOps.h"
-#include "GraphTune/ComputeDAG/ComputeDAGDialect.h"
+#include "IR/ComputeDAG/ComputeDAGOps.h"
+#include "IR/ComputeDAG/ComputeDAGDialect.h"
 #include "mlir/IR/OpImplementation.h"
 
 #define GET_OP_CLASSES
-#include "GraphTune/ComputeDAG/ComputeDAGOps.cpp.inc"
+#include "IR/ComputeDAG/ComputeDAGOps.cpp.inc"
 
 
 

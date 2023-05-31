@@ -7,4 +7,4 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
 #define GET_OP_CLASSES
-#include "GraphTune/ComputeDAG/ComputeDAGOps.h.inc"
+#include "IR/ComputeDAG/ComputeDAGOps.h.inc"
