@@ -19,6 +19,18 @@ enum class GPUArch {
   threadIdxY = 6,
 };
 
+inline std::string getGPUArchStr(GPUArch arch) {
+  switch(arch) {
+    case GPUArch::blockIdxX : return "blockIdx.x";
+    case GPUArch::blockIdxY : return "blockIdx.y";
+    case GPUArch::vthreadX : return "vthread.x";
+    case GPUArch::vthreadY : return "vthread.y";
+    case GPUArch::threadIdxX : return "threadIdx.x";
+    case GPUArch::threadIdxY : return "threadIdx.y";
+  }
+  return "";
+}
+
 struct LoopInfo {
   AffineForOp forOp;
   int scope;
@@ -31,15 +43,16 @@ public:
   Scheduler() = default;
   Scheduler(ComputeDAG* graph_) : graph(graph_) {}
 
-  // Samplers
   std::vector<LoopInfo> collectLoops();
-  std::vector<Value> collectMemRef(MemorySpace ms = MemorySpace::global);
+  std::vector<Value> collectInputsAndOutputs();
   
   // Primitives
   std::vector<AffineForOp> split(AffineForOp forOp, 
     int num_output, const std::vector<int>& factors);
+  // move the inner loop to the outer is always true;
   void reorder(std::vector<AffineForOp> loopsOrder);
   void bind(AffineForOp forOp, GPUArch level);
+  Value cache_read(Value src, MemorySpace ms, AffineForOp where);
 
 private:
   void loweringAffineLoadStore();

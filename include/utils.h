@@ -1,6 +1,8 @@
 #pragma once
 #include <sstream>
 #include <string>
+#include <iterator>
+#include <algorithm>
 
 inline std::string GEMMName(int m, int n, int k) {
   std::stringstream ss;
