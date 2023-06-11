@@ -152,28 +152,29 @@ void ReorderAffineForOp::runOnOperation() {
       AffineForOp expectOutermost = targetOrder[0];
       OpBuilder builder(expectOutermost.getContext());
 
-      auto attr = expectOutermost->getAttr("compute_dag.loop_attr");
-      if (attr == builder.getStringAttr("reduction")) {
+      ///TODO: Consider if there are other ops in the same block as the reduction affine for
+      // auto attr = expectOutermost->getAttr("compute_dag.loop_attr");
+      // if (attr == builder.getStringAttr("reduction")) {
 
-        // auto prevOp = expectOutermost->getPrevNode();
-        // if (!(prevOp->hasAttr(builder.getStringAttr("affine.compute_for")) && 
-        //     prevOp->getAttr(builder.getStringAttr("affine.compute_for")) ==
-        //       builder.getStringAttr("address"))) {
-        //   auto cloned = outermostForOp.clone();
-        //   outermostForOp->getBlock()->getOperations().insert(
-        //     Block::iterator(outermostForOp),
-        //     cloned.getOperation());
-        //   auto ops = cloned.getBody()->getOperations().erase()    
-        // }
+      //   // auto prevOp = expectOutermost->getPrevNode();
+      //   // if (!(prevOp->hasAttr(builder.getStringAttr("affine.compute_for")) && 
+      //   //     prevOp->getAttr(builder.getStringAttr("affine.compute_for")) ==
+      //   //       builder.getStringAttr("address"))) {
+      //   //   auto cloned = outermostForOp.clone();
+      //   //   outermostForOp->getBlock()->getOperations().insert(
+      //   //     Block::iterator(outermostForOp),
+      //   //     cloned.getOperation());
+      //   //   auto ops = cloned.getBody()->getOperations().erase()    
+      //   // }
 
-        auto cloned = outermostForOp.clone();
-        if (cloned == outermostForOp) {
-          llvm::errs() << "They are same!\n";
-        }
-        outermostForOp->getBlock()->getOperations().insert(
-          std::next(Block::iterator(outermostForOp)),
-          cloned.getOperation());
-      }
+      //   auto cloned = outermostForOp.clone();
+      //   if (cloned == outermostForOp) {
+      //     llvm::errs() << "They are same!\n";
+      //   }
+      //   outermostForOp->getBlock()->getOperations().insert(
+      //     std::next(Block::iterator(outermostForOp)),
+      //     cloned.getOperation());
+      // }
 
       // erase the yield op
       expectOutermost.getBody()->back().erase();
@@ -240,6 +241,130 @@ BindArchTag2AffineForOpPass(AffineForOp forOp, GPUArch level) {
   return std::make_unique<BindArchTag2AffineForOp>(forOp, level);
 }
 
+static bool found = false;
+static std::vector<Value> localConstantsOperands;
+static std::vector<AffineForOp> outerAffineForOps;
+static std::vector<AffineForOp> innerAffineFOrOps;
+static Value cacheWriteResult;
+
+struct CacheWrite : 
+  public PassWrapper<CacheWrite, OperationPass<func::FuncOp>> {
+    MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CacheWrite)
+    CacheWrite(Value src_, MemorySpace ms_, AffineForOp where_) 
+      : src(src_), ms(ms_), where(where_) {}
+    void runOnOperation() override;
+
+    Value src;
+    MemorySpace ms; 
+    AffineForOp where;
+};
+
+void collectMutableOperands(Value operand) {
+  for (auto operand_ : localConstantsOperands) {
+    if (operand_ == operand) {
+      return;
+    }
+  }
+  // auto owner = operand->getOwner();
+  Operation* owner = operand.getDefiningOp();
+  if (operand.dyn_cast<BlockArgument>()) {
+    auto blockArgument = operand.dyn_cast<BlockArgument>();
+    owner = blockArgument.getOwner()->getParentOp();
+  }
+  if (dyn_cast<arith::ConstantOp>(owner)) {
+    return;
+  }
+  auto ownerForOp = dyn_cast<AffineForOp>(owner);
+  if (ownerForOp) {
+    for (auto forOp : outerAffineForOps) {
+      if (ownerForOp == forOp) {
+        llvm::errs() << "Pay attention, not be supposed!\n";
+        return;
+      }
+    }
+    for (auto forOp : innerAffineFOrOps) {
+      if (forOp == ownerForOp) {
+        return;
+      }
+    }
+    innerAffineFOrOps.push_back(ownerForOp);
+    return;
+  }
+  auto operands = owner->getOperands();
+  for (auto operandNest : operands) {
+    collectMutableOperands(operandNest);
+  }
+}
+
+void CacheWrite::runOnOperation() {
+
+  func::FuncOp func = getOperation();
+  func.walk<WalkOrder::PreOrder>([&](AffineForOp forOp) {
+
+    if (!found) {
+      if (forOp == where) found = true;
+      localConstantsOperands.push_back(forOp.getInductionVar());
+      outerAffineForOps.push_back(forOp);
+    }
+  });
+  auto users = src.getUsers();
+  if (users.empty()) return;
+  std::vector<Value> indices;
+  bool init = false;
+  bool existLoad = false;
+  bool existStore = false;
+  for (auto user : users) {
+    auto loadOp = dyn_cast<memref::LoadOp>(user);
+    if (loadOp != nullptr) {
+      existLoad = true;
+      auto operands = loadOp.getIndices();
+      if (!init) {
+        init = true;
+        int num = operands.size();
+        for (int i = 0; i < num; i++) {
+          indices.push_back(operands[i]);
+        }
+      } else {
+        int num = operands.size();
+        for (int i = 0; i < num; i++) {
+          assert(operands[i] == indices[i]);
+        }
+      }
+      continue;
+    }
+
+    auto storeOp = dyn_cast<memref::StoreOp>(user);
+    if (storeOp != nullptr) {
+      existStore = true;
+      auto operands = storeOp.getIndices();
+      if (!init) {
+        init = true;
+        int num = operands.size();
+        for (int i = 0; i < num; i++) {
+          indices.push_back(operands[i]);
+        }
+      } else {
+        int num = operands.size();
+        for (int i = 0; i < num; i++) {
+          assert(operands[i] == indices[i]);
+        }
+      }
+      continue;
+    } else {
+      assert(false);
+    }
+  }
+  for (auto operand : indices) {
+    collectMutableOperands(operand);
+  }
+  assert(existStore);
+}
+
+std::unique_ptr<OperationPass<func::FuncOp>> 
+CacheWritePass(Value src, MemorySpace ms, AffineForOp where) {
+  return std::make_unique<CacheWrite>(src, ms, where);
+}
+
 }
 
 namespace KernelCodegen {
@@ -276,6 +401,21 @@ void Scheduler::bind(AffineForOp forOp, GPUArch level) {
     llvm::errs() << "Bind Arch Tag to loop failed.";
   }
   return;
+}
+
+Value Scheduler::cache_write(Value src, MemorySpace ms, AffineForOp where) {
+  found = false;
+  localConstantsOperands.clear();
+  outerAffineForOps.clear();
+  innerAffineFOrOps.clear();
+  PassManager pm(graph->module.getContext());
+  OpPassManager &optPM = pm.nest<func::FuncOp>();
+  optPM.addPass(CacheWritePass(src, ms, where));
+  if (failed(pm.run(graph->module))) {
+    llvm::errs() << "Cache write failed.";
+  }
+  return cacheWriteResult;
+
 }
 
 }

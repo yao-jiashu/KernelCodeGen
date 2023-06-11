@@ -52,6 +52,9 @@ public:
   // move the inner loop to the outer is always true;
   void reorder(std::vector<AffineForOp> loopsOrder);
   void bind(AffineForOp forOp, GPUArch level);
+  // The src of cache_write can be read and write
+  Value cache_write(Value src, MemorySpace ms, AffineForOp where);
+  // The src of cache_read only can be read
   Value cache_read(Value src, MemorySpace ms, AffineForOp where);
 
 private:

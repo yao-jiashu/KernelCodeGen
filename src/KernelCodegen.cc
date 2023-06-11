@@ -34,17 +34,6 @@ void KernelCodegenMachine::autoSchedule() {
   s.bind(n_mider, GPUArch::threadIdxX);
   graph->dumpAndVerify();
 
-  auto insAndOuts = s.collectInputsAndOutputs();
-  auto C = insAndOuts[0];
-  auto A = insAndOuts[1];
-  auto B = insAndOuts[2];
-
-    // AA = s.cache_read(A, "shared", [C])
-    // BB = s.cache_read(B, "shared", [C])
-    // AL = s.cache_read(AA, "local", [C])
-    // BL = s.cache_read(BB, "local", [C])
-    // CC = s.cache_write(C, "local")
-
   auto k_axes = s.split(k_axis, 2, {8});
   graph->dumpAndVerify();
 
@@ -52,6 +41,20 @@ void KernelCodegenMachine::autoSchedule() {
   auto k_inner = k_axes[1];
   s.reorder({k_outer, k_inner, m_inner, n_inner});
   graph->dumpAndVerify();
+
+  auto insAndOuts = s.collectInputsAndOutputs();
+  auto C = insAndOuts[0];
+  auto A = insAndOuts[1];
+  auto B = insAndOuts[2];
+
+  auto CC = s.cache_write(C, MemorySpace::local, n_mider);
+  graph->dumpAndVerify();
+
+  // AA = s.cache_read(A, "shared", [C])
+  // BB = s.cache_read(B, "shared", [C])
+  // AL = s.cache_read(AA, "local", [C])
+  // BL = s.cache_read(BB, "local", [C])
+  // CC = s.cache_write(C, "local")
 
 }
 

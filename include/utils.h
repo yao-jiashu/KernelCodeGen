@@ -3,6 +3,7 @@
 #include <string>
 #include <iterator>
 #include <algorithm>
+#include <unordered_set>
 
 inline std::string GEMMName(int m, int n, int k) {
   std::stringstream ss;

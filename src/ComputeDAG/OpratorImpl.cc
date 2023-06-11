@@ -330,24 +330,24 @@ void GEMMImplement::runOnOperation() {
                         0, K, 1, /*iterArgs=lvm::None*/ ValueRange({}), kLoopBody);
         forOp->setAttr(std::string("compute_dag.loop_attr"),
             nestedBuilder.getStringAttr("reduction"));
-        auto ld_element = nestedBuilder.create<AffineLoadOp>(
-          nestedBuilder.getUnknownLoc(), C, ValueRange({i, j}));
-        if (dtype.isa<FloatType>()) {
-          auto zeroFloat = nestedBuilder.create<arith::ConstantFloatOp>(
-            nestedBuilder.getUnknownLoc(), llvm::APFloat(0.0f), dtype.dyn_cast<FloatType>());
-          auto max = nestedBuilder.create<arith::MaxFOp>(
-            nestedBuilder.getUnknownLoc(), zeroFloat, ld_element);
-          nestedBuilder.create<AffineStoreOp>(
-            nestedBuilder.getUnknownLoc(), max, C, ValueRange({i, j}));
-        }
-        else {
-          auto zeroInteger = nestedBuilder.create<arith::ConstantIntOp>(
-            nestedBuilder.getUnknownLoc(), 0UL, dtype);
-          auto max = nestedBuilder.create<arith::MaxSIOp>(
-            nestedBuilder.getUnknownLoc(), zeroInteger, ld_element);
-          nestedBuilder.create<AffineStoreOp>(
-            nestedBuilder.getUnknownLoc(), max, C, ValueRange({i, j}));        
-        }
+        // auto ld_element = nestedBuilder.create<AffineLoadOp>(
+        //   nestedBuilder.getUnknownLoc(), C, ValueRange({i, j}));
+        // if (dtype.isa<FloatType>()) {
+        //   auto zeroFloat = nestedBuilder.create<arith::ConstantFloatOp>(
+        //     nestedBuilder.getUnknownLoc(), llvm::APFloat(0.0f), dtype.dyn_cast<FloatType>());
+        //   auto max = nestedBuilder.create<arith::MaxFOp>(
+        //     nestedBuilder.getUnknownLoc(), zeroFloat, ld_element);
+        //   nestedBuilder.create<AffineStoreOp>(
+        //     nestedBuilder.getUnknownLoc(), max, C, ValueRange({i, j}));
+        // }
+        // else {
+        //   auto zeroInteger = nestedBuilder.create<arith::ConstantIntOp>(
+        //     nestedBuilder.getUnknownLoc(), 0UL, dtype);
+        //   auto max = nestedBuilder.create<arith::MaxSIOp>(
+        //     nestedBuilder.getUnknownLoc(), zeroInteger, ld_element);
+        //   nestedBuilder.create<AffineStoreOp>(
+        //     nestedBuilder.getUnknownLoc(), max, C, ValueRange({i, j}));        
+        // }
       }
     );
     builder.create<func::ReturnOp>(builder.getUnknownLoc());
