@@ -42,12 +42,12 @@ void KernelCodegenMachine::autoSchedule() {
   s.reorder({k_outer, k_inner, m_inner, n_inner});
   graph->dumpAndVerify();
 
-  auto insAndOuts = s.collectInputsAndOutputs();
-  auto C = insAndOuts[0];
-  auto A = insAndOuts[1];
-  auto B = insAndOuts[2];
+  // auto insAndOuts = s.collectInputsAndOutputs();
+  // auto C = insAndOuts[0];
+  // auto A = insAndOuts[1];
+  // auto B = insAndOuts[2];
 
-  auto CC = s.cache_write(C, MemorySpace::local, n_mider);
+  auto CC = s.cache_write(C, MemorySpace::local, n_mider, n_mider);
   graph->dumpAndVerify();
 
   // AA = s.cache_read(A, "shared", [C])

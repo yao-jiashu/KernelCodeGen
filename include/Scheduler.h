@@ -52,12 +52,23 @@ public:
   // move the inner loop to the outer is always true;
   void reorder(std::vector<AffineForOp> loopsOrder);
   void bind(AffineForOp forOp, GPUArch level);
+
+  // The write buffer are ususlly private to each writer and only be writen once by its owner.
+    // To store temperary variable.
+    // So write buffer usually placed to registers.
+  // The read buffer are ususlly public to multiple readers and read multiple times by some readers.
+    // To achieve data reuse.
+    // So read buffer ususlly placed at shared memory in GPU architecture, so need additional param
+      // `transpose` to decide whether this buffer should be transposed to resolve bank conflicts.
+
   // The src of cache_write can be read and write
-  Value cache_write(Value src, MemorySpace ms, AffineForOp where);
+  Value cache_write(Value src, MemorySpace ms, AffineForOp declare_at, AffineForOp compute_at);
   // The src of cache_read only can be read
-  Value cache_read(Value src, MemorySpace ms, AffineForOp where);
+  Value cache_read(Value src, MemorySpace ms, AffineForOp declare_at, AffineForOp compute_at, bool transpose);
 
 private:
+  
+  int load_length_per_thread {4};
   void loweringAffineLoadStore();
   ComputeDAG* graph {nullptr};
 };

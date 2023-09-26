@@ -250,13 +250,23 @@ static Value cacheWriteResult;
 struct CacheWrite : 
   public PassWrapper<CacheWrite, OperationPass<func::FuncOp>> {
     MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CacheWrite)
-    CacheWrite(Value src_, MemorySpace ms_, AffineForOp where_) 
-      : src(src_), ms(ms_), where(where_) {}
+    CacheWrite(Value src_, MemorySpace ms_, AffineForOp declare_at_, AffineForOp compute_at_) 
+      : src(src_), ms(ms_), declare_at(declare_at_), compute_at(compute_at_) {
+        // When we want to cache the write, we need to palce it in the position where it will be used.
+        // In general, only a writer will write the position, two writers will bring conflicts
+        // So, every writer can cache its write to local scope belong to itself.
+        // Unfortunately, cache_read will be more complex.
+        assert(declare_at_ == compute_at_);
+      }
     void runOnOperation() override;
 
     Value src;
-    MemorySpace ms; 
-    AffineForOp where;
+    MemorySpace ms;
+    // Affect the position where the memref.alloc placed 
+    AffineForOp declare_at;
+    // Afect the size, which loop will use this cache from begin to end
+    AffineForOp compute_at;
+    std::vector memorySize;
 };
 
 void collectMutableOperands(Value operand) {
@@ -267,6 +277,7 @@ void collectMutableOperands(Value operand) {
   }
   // auto owner = operand->getOwner();
   Operation* owner = operand.getDefiningOp();
+  /// Pay attentiont to it.
   if (operand.dyn_cast<BlockArgument>()) {
     auto blockArgument = operand.dyn_cast<BlockArgument>();
     owner = blockArgument.getOwner()->getParentOp();
@@ -299,10 +310,12 @@ void collectMutableOperands(Value operand) {
 void CacheWrite::runOnOperation() {
 
   func::FuncOp func = getOperation();
+  
+  // Step 1: infer size
   func.walk<WalkOrder::PreOrder>([&](AffineForOp forOp) {
 
     if (!found) {
-      if (forOp == where) found = true;
+      if (forOp == compute_at) found = true;
       localConstantsOperands.push_back(forOp.getInductionVar());
       outerAffineForOps.push_back(forOp);
     }
@@ -311,12 +324,9 @@ void CacheWrite::runOnOperation() {
   if (users.empty()) return;
   std::vector<Value> indices;
   bool init = false;
-  bool existLoad = false;
-  bool existStore = false;
   for (auto user : users) {
     auto loadOp = dyn_cast<memref::LoadOp>(user);
     if (loadOp != nullptr) {
-      existLoad = true;
       auto operands = loadOp.getIndices();
       if (!init) {
         init = true;
@@ -335,7 +345,6 @@ void CacheWrite::runOnOperation() {
 
     auto storeOp = dyn_cast<memref::StoreOp>(user);
     if (storeOp != nullptr) {
-      existStore = true;
       auto operands = storeOp.getIndices();
       if (!init) {
         init = true;
@@ -355,14 +364,28 @@ void CacheWrite::runOnOperation() {
     }
   }
   for (auto operand : indices) {
+    memorySize.push_back(0);
     collectMutableOperands(operand);
   }
-  assert(existStore);
+
+  // Step 2: declare
+
+  mlir::MemRefType tensorShape = mlir::MemRefType::get(
+    memorySize, dtype_, {}, static_cast<int>(ms));
+  OpBuilder builder(declare_at);
+  auto cache_read = builder.create<ComputeDAG::Placholder>(builder.getUnknownLoc(), tensorShape);
+
+  // Step 3: load
+
+
+  // Step 4: replace
+  cache_read.replaceAllUsesWith(src);
+
 }
 
 std::unique_ptr<OperationPass<func::FuncOp>> 
-CacheWritePass(Value src, MemorySpace ms, AffineForOp where) {
-  return std::make_unique<CacheWrite>(src, ms, where);
+CacheWritePass(Value src, MemorySpace ms, AffineForOp declare_at, AffineForOp compute_at) {
+  return std::make_unique<CacheWrite>(src, ms, declare_at, compute_at);
 }
 
 }
@@ -403,14 +426,14 @@ void Scheduler::bind(AffineForOp forOp, GPUArch level) {
   return;
 }
 
-Value Scheduler::cache_write(Value src, MemorySpace ms, AffineForOp where) {
+Value Scheduler::cache_write(Value src, MemorySpace ms, AffineForOp declare_at, AffineForOp compute_at) {
   found = false;
   localConstantsOperands.clear();
   outerAffineForOps.clear();
   innerAffineFOrOps.clear();
   PassManager pm(graph->module.getContext());
   OpPassManager &optPM = pm.nest<func::FuncOp>();
-  optPM.addPass(CacheWritePass(src, ms, where));
+  optPM.addPass(CacheWritePass(src, ms, declare_at, compute_at));
   if (failed(pm.run(graph->module))) {
     llvm::errs() << "Cache write failed.";
   }
