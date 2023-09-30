@@ -225,13 +225,40 @@ void BindArchTag2AffineForOp::runOnOperation() {
   func.walk<WalkOrder::PreOrder>([&](AffineForOp forOp) {
     if (forOp == targetOp) {
       auto attrName = getGPUArchStr(targetArch);
-      OpBuilder builder(forOp.getContext());
+      // OpBuilder builder(forOp.getContext());
+      OpBuilder builder(forOp.getRegion());
+
       forOp->setAttr(std::string("gpu.parallel_arch"),
         builder.getStringAttr(attrName));
       
-      // // Parallel this AffineForOp, but will drop attributes, need you add again
-      // SmallVector<LoopReduction> reductions;
-      // affineParallelize(forOp, reductions);
+      // auto iter = forOp.getInductionVar();
+
+      // mlir::OpBuilder::InsertionGuard nestedGuard(builder);
+
+      // switch (targetArch) {
+      //   case GPUArch::blockIdxX: {
+      //     auto blockIdxX = builder.create<gpu::BlockIdOp>(builder.getUnknownLoc(), builder.getIndexType(), gpu::Dimension::x);
+      //     iter.replaceAllUsesWith(blockIdxX);
+      //     break;
+      //   }
+      //   case GPUArch::blockIdxY: {
+      //     auto blockIdxY = builder.create<gpu::BlockIdOp>(builder.getUnknownLoc(), builder.getIndexType(), gpu::Dimension::y);
+      //     iter.replaceAllUsesWith(blockIdxY);
+      //     break;
+      //   }
+      //   case GPUArch::threadIdxX: {
+      //     auto threadIdxX = builder.create<gpu::ThreadIdOp>(builder.getUnknownLoc(), builder.getIndexType(), gpu::Dimension::x);
+      //     iter.replaceAllUsesWith(threadIdxX);
+      //     break;
+      //   }
+      //   case GPUArch::threadIdxY: {
+      //     auto threadIdxY = builder.create<gpu::ThreadIdOp>(builder.getUnknownLoc(), builder.getIndexType(), gpu::Dimension::y);
+      //     iter.replaceAllUsesWith(threadIdxY);
+      //     break;
+      //   }
+      //   default:
+      //     llvm::errs() << "Unsupport index type\n";
+      // }
     }
   });
 }
@@ -266,7 +293,7 @@ struct CacheWrite :
     AffineForOp declare_at;
     // Afect the size, which loop will use this cache from begin to end
     AffineForOp compute_at;
-    std::vector memorySize;
+    std::vector<int> memorySize;
 };
 
 void collectMutableOperands(Value operand) {
@@ -370,16 +397,16 @@ void CacheWrite::runOnOperation() {
 
   // Step 2: declare
 
-  mlir::MemRefType tensorShape = mlir::MemRefType::get(
-    memorySize, dtype_, {}, static_cast<int>(ms));
-  OpBuilder builder(declare_at);
-  auto cache_read = builder.create<ComputeDAG::Placholder>(builder.getUnknownLoc(), tensorShape);
+  // mlir::MemRefType tensorShape = mlir::MemRefType::get(
+  //   memorySize, dtype, {}, static_cast<int>(ms));
+  // OpBuilder builder(declare_at);
+  // auto cache_read = builder.create<ComputeDAG::Placholder>(builder.getUnknownLoc(), tensorShape);
 
   // Step 3: load
 
 
   // Step 4: replace
-  cache_read.replaceAllUsesWith(src);
+  // cache_read.replaceAllUsesWith(src);
 
 }
 
@@ -392,7 +419,7 @@ CacheWritePass(Value src, MemorySpace ms, AffineForOp declare_at, AffineForOp co
 
 namespace KernelCodegen {
 
-std::vector<AffineForOp> Scheduler::split(AffineForOp forOp, 
+std::vector<Scheduler::Loop> Scheduler::split(Scheduler::Loop forOp, 
   int num_output, const std::vector<int>& factors) {
   loweringAffineLoadStore();
   loops.clear();
@@ -406,7 +433,7 @@ std::vector<AffineForOp> Scheduler::split(AffineForOp forOp,
 }
 
 
-void Scheduler::reorder(std::vector<AffineForOp> loopsOrder) {
+void Scheduler::reorder(std::vector<Scheduler::Loop> loopsOrder) {
   PassManager pm(graph->module.getContext());
   OpPassManager &optPM = pm.nest<func::FuncOp>();
   optPM.addPass(ReorderAffineForOpPass(loopsOrder));
@@ -416,7 +443,7 @@ void Scheduler::reorder(std::vector<AffineForOp> loopsOrder) {
   return;
 }
 
-void Scheduler::bind(AffineForOp forOp, GPUArch level) {
+void Scheduler::bind(Scheduler::Loop forOp, GPUArch level) {
   PassManager pm(graph->module.getContext());
   OpPassManager &optPM = pm.nest<func::FuncOp>();
   optPM.addPass(BindArchTag2AffineForOpPass(forOp, level));
@@ -426,7 +453,7 @@ void Scheduler::bind(AffineForOp forOp, GPUArch level) {
   return;
 }
 
-Value Scheduler::cache_write(Value src, MemorySpace ms, AffineForOp declare_at, AffineForOp compute_at) {
+Value Scheduler::cache_write(Value src, MemorySpace ms, Scheduler::Loop declare_at, Scheduler::Loop compute_at) {
   found = false;
   localConstantsOperands.clear();
   outerAffineForOps.clear();
@@ -440,5 +467,19 @@ Value Scheduler::cache_write(Value src, MemorySpace ms, AffineForOp declare_at, 
   return cacheWriteResult;
 
 }
+
+Scheduler::Placholder Scheduler::alloc_buffer(
+  Scheduler::Function& func, MemorySpace ms, std::vector<int64_t> l, std::string dtype) {
+  llvm::ArrayRef<int64_t> shape (l);
+  auto dtype_ = getDataType(dtype);
+  mlir::MemRefType tensorShape = mlir::MemRefType::get(
+    shape, dtype_, {}, static_cast<int>(ms));
+  
+  mlir::OpBuilder::InsertionGuard nestedGuard(graph->builder);
+  graph->builder.setInsertionPointToStart(&func.front());
+  
+  return graph->builder.create<Scheduler::Placholder>(graph->builder.getUnknownLoc(), tensorShape);
+}
+
 
 }

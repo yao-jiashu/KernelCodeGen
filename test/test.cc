@@ -10,19 +10,16 @@ int main(int argc, char* argv[]) {
   KC::initContext(ctx);
   KC::ComputeDAG graph("fuse_gemm_relu", ctx);
   int m = 4096, n = 4096, k = 4096;
-  // define the inputs first
-  auto A = graph.placeholder({m, k}, "float32", KC::MemorySpace::global);
-  auto B = graph.placeholder({k, n}, "float32", KC::MemorySpace::global);
+
+  // define the inputs tensor
+  auto A = graph.placeholder({m, k}, "float32");
+  auto B = graph.placeholder({k, n}, "float32");
   auto gemmOp = graph.gemm(A, B);
   graph.relu(gemmOp);
-  graph.dumpAndVerify();
-
-  llvm::errs() << "-------------------------------------------\n";
+  graph.dump();
 
   graph.operatorImpl();
-  graph.dumpAndVerify();
-  llvm::errs() << "-------------------------------------------\n";
-
+  graph.dump();
 
   KCM kcm(&graph);
 
@@ -33,10 +30,9 @@ int main(int argc, char* argv[]) {
   kcm.autoTune();
   llvm::errs() << kcm.codeGen();
 
-  kcm.autoSchedule();
+  kcm.autoSchedule(KC::GEMMConfig({m, n, k}));
   kcm.autoTune();
-  graph.dumpAndVerify();
-  llvm::errs() << "-------------------------------------------\n";
+  graph.dump();
   llvm::errs() << kcm.codeGen();
 
   // kcm.graphTune();

@@ -26,7 +26,7 @@ public:
   }
   std::string codeGen() {return {};}
   void autoTune() {}
-  void autoSchedule();
+  void autoSchedule(GEMMConfig&& config);
   void graphTune() {}
 
 private:

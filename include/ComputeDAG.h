@@ -31,18 +31,20 @@ public:
     builder.setInsertionPointToEnd(module.getBody());
     registerElementMapping();
   }
-  void dumpAndVerify() {
-      module->dump();
-      if (mlir::failed(mlir::verify(module))) {
-          module->emitError("graph verification error");
-          assert(false);
-      }
+  void dump() {
+    llvm::errs() << "-------------------------------------------\n";
+    module->dump();
+    if (mlir::failed(mlir::verify(module))) {
+      module->emitError("graph verification error");
+      assert(false);
+    }
   }
   void operatorImpl();
   // operations
-  Placholder placeholder(std::vector<int64_t> l, std::string dtype,  MemorySpace ms = MemorySpace::global);
+  Placholder placeholder(std::vector<int64_t> l, std::string dtype);
   GEMM gemm(Operand lhs, Operand rhs);
   Relu relu(Operand input);
+
 
 private:
   void registerElementMapping();

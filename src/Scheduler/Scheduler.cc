@@ -7,6 +7,40 @@ using namespace mlir;
 using namespace KernelCodegen;
 namespace {
 
+//----------------------------------------------- collect functions---------------------------------//
+
+static std::vector<Scheduler::Function> funcs;
+
+struct CollectFuncOp : 
+  public PassWrapper<CollectFuncOp, OperationPass<ModuleOp>> {
+   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CollectFuncOp)
+   CollectFuncOp(std::string& name_, ConstPassGuard* passGuard_) : name(name_), passGuard(passGuard_) {}
+   void runOnOperation() override;
+   std::string name;
+   ConstPassGuard* passGuard;
+};
+
+void CollectFuncOp::runOnOperation() {
+  ModuleOp module = getOperation();
+  
+  if (passGuard->visited()) return;
+  passGuard->visit();
+
+  module.walk<WalkOrder::PreOrder>([&](Scheduler::Function funcOp) {
+    // get the name of the func::FuncOp
+    std::string funcName {funcOp.getSymName()};
+    if (funcName.find(name) != std::string::npos) {
+      funcs.push_back(funcOp);
+    }
+  });
+}
+
+std::unique_ptr<OperationPass<ModuleOp>> CollectFunctionsPass(
+  std::string& name, ConstPassGuard* passGuard) {
+  return std::make_unique<CollectFuncOp>(name, passGuard);
+}
+
+//----------------------------------------------- collect loops---------------------------------//
 
 static std::vector<LoopInfo> loopInfos;
 
@@ -47,26 +81,39 @@ void DFS(Operation* op, int scope) {
 }
 
 struct CollectAffineForOp : 
-  public PassWrapper<CollectAffineForOp, OperationPass<func::FuncOp>> {
+  public PassWrapper<CollectAffineForOp, OperationPass<ModuleOp>> {
    MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CollectAffineForOp)
-   CollectAffineForOp(ConstPassGuard* passGuard_) : passGuard(passGuard_) {}
+   CollectAffineForOp(Scheduler::Function& func_, ConstPassGuard* passGuard_) : func(func_), passGuard(passGuard_) {}
    void runOnOperation() override;
+   Scheduler::Function func;
    ConstPassGuard* passGuard;
 };
 
 void CollectAffineForOp::runOnOperation() {
-  func::FuncOp func = getOperation();
+  ModuleOp module = getOperation();
   
   if (passGuard->visited()) return;
   passGuard->visit();
-  // depth-first search
-  DFS(func, 0);
+
+  module.walk<WalkOrder::PreOrder>([&](Scheduler::Function funcOp) {
+
+    if (funcOp != func) {
+      return;
+    }
+    // depth-first search
+    DFS(funcOp, 0);
+  });
+
 }
 
-std::unique_ptr<OperationPass<func::FuncOp>> CollectAffineForOpPass(
-  ConstPassGuard* passGuard) {
-   return std::make_unique<CollectAffineForOp>(passGuard);
+std::unique_ptr<OperationPass<ModuleOp>> CollectAffineForOpPass(
+  Scheduler::Function& func, ConstPassGuard* passGuard) {
+  
+  return std::make_unique<CollectAffineForOp>(func, passGuard);
 }
+
+
+//----------------------------------------------- load store ---------------------------------//
 
 /// lowering affine load/store to memref load/store
 struct LoweringAffineLoadStore
@@ -179,14 +226,29 @@ std::unique_ptr<OperationPass<func::FuncOp>> CollectInsAndOutsPass(
 
 namespace KernelCodegen {
 
+std::vector<Scheduler::Function> 
+Scheduler::collectFunctions(std::string&& functionName) {
+  ConstPassGuard passGuard;
+  PassManager pm(graph->module.getContext());
+ 
+  funcs.clear();
+  
+  pm.addPass(CollectFunctionsPass(functionName, &passGuard));
+
+  if (failed(pm.run(graph->module))) {
+    llvm::errs() << "Collects functions failed.\n";
+  }
+
+  return funcs;
+}
+
 /// @brief TODO: optimize this function
 /// @return 
-std::vector<LoopInfo> Scheduler::collectLoops() {
+std::vector<LoopInfo> Scheduler::collectLoops(Scheduler::Function& func) {
   loopInfos.clear();
   ConstPassGuard passGuard;
   PassManager pm(graph->module.getContext());
-  OpPassManager &optPM = pm.nest<func::FuncOp>();
-  optPM.addPass(CollectAffineForOpPass(&passGuard));
+  pm.addPass(CollectAffineForOpPass(func, &passGuard));
   if (failed(pm.run(graph->module))) {
     llvm::errs() << "Collects loops information failed.\n";
   }
@@ -212,6 +274,13 @@ std::vector<Value> Scheduler::collectInputsAndOutputs() {
     llvm::errs() << "Collects inputs and outpus information failed.\n";
   }
   return insAndOuts;
+}
+
+Scheduler::DType Scheduler::getDataType(std::string dtype) {
+  if (dtype == "float32") {
+    return graph->builder.getF32Type();
+  }
+  return nullptr;
 }
 
 }

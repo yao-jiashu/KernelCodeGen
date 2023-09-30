@@ -1,7 +1,7 @@
 # preconfig
 ###################################################################
 # set nvcc path
-set(CMAKE_CUDA_COMPILER /usr/local/cuda-11.7/bin/nvcc)
+set(CMAKE_CUDA_COMPILER /usr/local/cuda-12.1/bin/nvcc)
 
 # set to debug mode
 set(CMAKE_BUILD_TYPE release)
