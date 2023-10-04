@@ -89,13 +89,13 @@ void SplitTargetAffineForOp::runOnOperation() {
         }
       );
       AffineForOp innermostForOp;
-      auto attr = forOp->getAttr("compute_dag.loop_attr");
+      auto attr = forOp->getAttr("schedule.loop_attr");
       auto prevNode = forOp->getPrevNode();
       AffineForOp outermostForOp = dyn_cast<AffineForOp>(prevNode);
       outermostForOp.walk<WalkOrder::PreOrder>([&](AffineForOp newLoop) {
         loops.push_back(newLoop);
         innermostForOp = newLoop;
-        newLoop->setAttr("compute_dag.loop_attr", attr);
+        newLoop->setAttr("schedule.loop_attr", attr);
       });
 
       // erase the yield op
@@ -153,7 +153,7 @@ void ReorderAffineForOp::runOnOperation() {
       OpBuilder builder(expectOutermost.getContext());
 
       ///TODO: Consider if there are other ops in the same block as the reduction affine for
-      // auto attr = expectOutermost->getAttr("compute_dag.loop_attr");
+      // auto attr = expectOutermost->getAttr("schedule.loop_attr");
       // if (attr == builder.getStringAttr("reduction")) {
 
       //   // auto prevOp = expectOutermost->getPrevNode();
@@ -400,7 +400,7 @@ void CacheWrite::runOnOperation() {
   // mlir::MemRefType tensorShape = mlir::MemRefType::get(
   //   memorySize, dtype, {}, static_cast<int>(ms));
   // OpBuilder builder(declare_at);
-  // auto cache_read = builder.create<ComputeDAG::Placholder>(builder.getUnknownLoc(), tensorShape);
+  // auto cache_read = builder.create<ComputeDAG::Placeholder>(builder.getUnknownLoc(), tensorShape);
 
   // Step 3: load
 
@@ -468,7 +468,7 @@ Value Scheduler::cache_write(Value src, MemorySpace ms, Scheduler::Loop declare_
 
 }
 
-Scheduler::Placholder Scheduler::alloc_buffer(
+Value Scheduler::alloc_buffer(
   Scheduler::Function& func, MemorySpace ms, std::vector<int64_t> l, std::string dtype) {
   llvm::ArrayRef<int64_t> shape (l);
   auto dtype_ = getDataType(dtype);
@@ -478,7 +478,96 @@ Scheduler::Placholder Scheduler::alloc_buffer(
   mlir::OpBuilder::InsertionGuard nestedGuard(graph->builder);
   graph->builder.setInsertionPointToStart(&func.front());
   
-  return graph->builder.create<Scheduler::Placholder>(graph->builder.getUnknownLoc(), tensorShape);
+  return graph->builder.create<Scheduler::Placeholder>(graph->builder.getUnknownLoc(), tensorShape)->getResult(0);
+}
+
+
+
+using llvm::SmallMapVector;
+
+
+// /// Get the number of bits require to store a value of the given shaped type.
+// /// Compute the value recursively since tensors are allowed to have vectors as
+// /// elements.
+// int64_t getSizeInBits(ShapedType type)  {
+//   assert(type.hasStaticShape() &&
+//          "cannot get the bit size of an aggregate with a dynamic shape");
+
+//   auto elementType = type.getElementType();
+//   if (elementType.isIntOrFloat())
+//     return elementType.getIntOrFloatBitWidth() * type.getNumElements();
+
+//   if (auto complexType = elementType.dyn_cast<ComplexType>()) {
+//     elementType = complexType.getElementType();
+//     return elementType.getIntOrFloatBitWidth() * type.getNumElements() * 2;
+//   }
+
+//   // Tensors can have vectors and other tensors as elements, other shaped types
+//   // cannot.
+//   assert(type.isa<TensorType>() && "unsupported element type");
+//   assert((elementType.isa<VectorType, TensorType>()) &&
+//          "unsupported tensor element type");
+//   return type.getNumElements() * elementType.cast<ShapedType>().getSizeInBits();
+// }
+
+// /// Given an input type, provides a vector type for it of the provided width.
+// static VectorType getVectorizedType(Type inputType, unsigned width) {
+//   assert(width > 1 && "unexpected vector width");
+//   assert(!inputType.isa<IndexType>() && "index type can't be vectorized");
+//   Type baseEltType = inputType;
+//   SmallVector<int64_t, 4> vecShape;
+//   if (auto vecEltType = inputType.dyn_cast<VectorType>()) {
+//     baseEltType = vecEltType.getElementType();
+//     vecShape.reserve(vecShape.size() + vecEltType.getRank());
+//     vecShape.assign(vecEltType.getShape().begin(), vecEltType.getShape().end());
+//   }
+//   vecShape.push_back(width);
+//   return VectorType::get(vecShape, baseEltType);
+// }
+
+// /// Casts a given input memref, uses memref_shape_cast op to cast it to a memref
+// /// with an elemental type that is `vector width` times (for eg., f32 becomes
+// /// vector<8xf32>, vector<8xf32> becomes vector<8x8xf32> if `vectorWidth` were
+// /// to be 8).
+// Value createVectorMemRef(Value scalMemRef, unsigned vectorWidth) {
+//   auto scalMemRefType = scalMemRef.getType().cast<MemRefType>();
+//   auto shape = scalMemRefType.getShape();
+
+//   OpBuilder b(scalMemRef.getContext());
+//   if (auto *defOp = scalMemRef.getDefiningOp())
+//     b.setInsertionPointAfter(defOp);
+//   else
+//     b.setInsertionPointToStart(scalMemRef.cast<BlockArgument>().getOwner());
+
+//   auto vecMemRefEltType =
+//       getVectorizedType(scalMemRefType.getElementType(), vectorWidth);
+
+//   SmallVector<int64_t, 4> vecMemRefShape(shape.begin(), shape.end());
+//   if (vecMemRefShape.back() != -1)
+//     vecMemRefShape.back() /= vectorWidth;
+
+//   auto vecMemRefType = MemRefType::get(vecMemRefShape, vecMemRefEltType);
+
+//   // FIXME: we are using a shape cast here, but we do not know whether the base
+//   // memref is aligned to the right boundary. The load/stores on cast memref (of
+//   // vector elt type) would be mapped to aligned load/stores by default and
+//   // lead to a protection fault.
+//   // We are going to fix this at least where we have access to the defining
+//   // alloc op.
+//   if (auto allocOp = dyn_cast_or_null<memref::AllocOp>(scalMemRef.getDefiningOp()))
+//     allocOp.alignmentAttr(
+//         b.getI64IntegerAttr(getSizeInBits(vecMemRefEltType) / 8));
+
+//   return b.create<enhance::VectorizeOp>(b.getUnknownLoc(), vecMemRefType,
+//                                         scalMemRef);
+// }
+
+Scheduler::Placeholder Scheduler::vectorize(Scheduler::Placeholder& src, uint32_t vectorWidth) {
+
+}
+
+void Scheduler::memcpy(Tensor& dst, Tensor& src, Loop& compute_at) {
+  
 }
 
 

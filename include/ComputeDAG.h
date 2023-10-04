@@ -17,7 +17,7 @@ class ComputeDAG {
 public:
   friend class Scheduler;
 
-  using Placholder = mlir::memref::AllocOp;
+  using Placeholder = mlir::memref::AllocOp;
   using GEMM = mlir::compute_dag::GEMMOp;
   using Relu = mlir::compute_dag::ReluOp;
   using Operand = mlir::Operation*;
@@ -31,7 +31,9 @@ public:
     builder.setInsertionPointToEnd(module.getBody());
     registerElementMapping();
   }
-  void dump() {
+  void dump(const std::string& info = "") {
+    llvm::errs() << "-------------------------------------------\n";
+    llvm::errs() << "           " << info << "\n";
     llvm::errs() << "-------------------------------------------\n";
     module->dump();
     if (mlir::failed(mlir::verify(module))) {
@@ -41,7 +43,7 @@ public:
   }
   void operatorImpl();
   // operations
-  Placholder placeholder(std::vector<int64_t> l, std::string dtype);
+  Placeholder placeholder(std::vector<int64_t> l, std::string dtype);
   GEMM gemm(Operand lhs, Operand rhs);
   Relu relu(Operand input);
 

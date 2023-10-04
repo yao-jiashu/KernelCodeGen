@@ -45,7 +45,7 @@ buildAffineLoopFromConstants(OpBuilder &builder, Location loc, int64_t lb,
                              AffineForOp::BodyBuilderFn bodyBuilderFn) {
   auto forOp = builder.create<AffineForOp>(loc, lb, ub, step, /*iterArgs=*/llvm::None,
                                      bodyBuilderFn);
-  forOp->setAttr(std::string("compute_dag.loop_attr"),
+  forOp->setAttr(std::string("schedule.loop_attr"),
     builder.getStringAttr("spatial"));
   return forOp;
 }
@@ -63,7 +63,7 @@ buildAffineLoopFromValues(OpBuilder &builder, Location loc, Value lb, Value ub,
   auto forOp = builder.create<AffineForOp>(loc, lb, builder.getDimIdentityMap(), ub,
                                      builder.getDimIdentityMap(), step,
                                      /*iterArgs=*/llvm::None, bodyBuilderFn);
-  forOp->setAttr(std::string("compute_dag.loop_attr"),
+  forOp->setAttr(std::string("schedule.loop_attr"),
     builder.getStringAttr("spatial"));
   return forOp;
 }
@@ -176,7 +176,7 @@ void operatorElementMapping() {
     auto loopCarriedVar = ld_c.getResult();
     auto forOp = nestedBuilder.create<AffineForOp>(nestedBuilder.getUnknownLoc(), 
                     0, K, 1, /*iterArgs=lvm::None*/ ValueRange({loopCarriedVar}), kLoopBody);
-    forOp->setAttr(std::string("compute_dag.loop_attr"),
+    forOp->setAttr(std::string("schedule.loop_attr"),
         nestedBuilder.getStringAttr("reduction"));
     nestedBuilder.create<AffineStoreOp>(
         nestedBuilder.getUnknownLoc(), forOp.getResult(0), C, ValueRange({i, j}));
@@ -328,7 +328,7 @@ void GEMMImplement::runOnOperation() {
         };
         auto forOp = nestedBuilder.create<AffineForOp>(nestedBuilder.getUnknownLoc(), 
                         0, K, 1, /*iterArgs=lvm::None*/ ValueRange({}), kLoopBody);
-        forOp->setAttr(std::string("compute_dag.loop_attr"),
+        forOp->setAttr(std::string("schedule.loop_attr"),
             nestedBuilder.getStringAttr("reduction"));
         // auto ld_element = nestedBuilder.create<AffineLoadOp>(
         //   nestedBuilder.getUnknownLoc(), C, ValueRange({i, j}));

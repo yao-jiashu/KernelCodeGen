@@ -53,7 +53,7 @@ void DFS(Operation* op, int scope) {
     loopInfo.forOp = forOp;
     OpBuilder builder(forOp.getContext());
 
-    auto attr = forOp->getAttr(builder.getStringAttr("compute_dag.loop_attr"));
+    auto attr = forOp->getAttr(builder.getStringAttr("schedule.loop_attr"));
     if (attr != nullptr) {
       auto attrStr =attr.dyn_cast<StringAttr>().str();
       if (attrStr == "spatial") loopInfo.attibute = LoopAttribute::spatial;

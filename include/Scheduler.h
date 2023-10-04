@@ -1,6 +1,7 @@
 #pragma once
 #include "IR/MLIRExtension.h"
 #include "ComputeDAG.h"
+#include "Expression.h"
 
 namespace KernelCodegen {
 using namespace mlir;
@@ -45,21 +46,45 @@ struct LoopInfo {
   LoopAttribute attibute;
 };
 
+struct Tensor {
+
+  using Expr = std::shared_ptr<Expression>;
+
+  Tensor(const Value& inputOp, 
+    std::vector<Expr>&& start_, 
+    std::vector<Expr>&& end_, 
+    const std::vector<int>& pack_width_) : 
+      memory(inputOp), start(start_), end(end_), pack_width(pack_width_) {
+    
+    auto memType = memory.getType();
+
+    auto type = memType.dyn_cast<MemRefType>();
+    if(type.isa<mlir::MemRefType>()) {
+      auto shape_ = type.dyn_cast<mlir::MemRefType>();
+      rank = shape_.getShape().size();
+      dtype = shape_.getElementType();
+      ms = shape_.getMemorySpace();
+    } else {
+      std::cout << "Unsupport input of Tensor.\n";
+    }
+  }
+
+  Value memory;
+  int rank;
+  std::vector<int64_t> shape;
+  std::vector<Expr> start;
+  std::vector<Expr> end;
+  std::vector<int> pack_width;
+  mlir::Attribute ms;
+  ComputeDAG::DType dtype;
+};
+
 class Scheduler {
 public:
   using DType = ComputeDAG::DType;
-  using Placholder = ComputeDAG::Placholder;
+  using Placeholder = ComputeDAG::Placeholder;
   using Function = mlir::func::FuncOp;
   using Loop = AffineForOp;
-
-  struct Tensor {
-    Tensor(Placholder& inputOp) {}
-    Placholder memory;
-    int rank;
-    std::vector<int> shape;
-    
-    MemorySpace ms;
-  };
 
   Scheduler() = default;
   Scheduler(ComputeDAG* graph_) : graph(graph_) {}
@@ -89,7 +114,12 @@ public:
   Value cache_write(Value src, MemorySpace ms, Loop declare_at, Loop compute_at);
   // The src of cache_read only can be read
   Value cache_read(Value src, MemorySpace ms, Loop declare_at, Loop compute_at, bool transpose);
-  Placholder alloc_buffer(Function& func, MemorySpace ms, std::vector<int64_t> l, std::string dtype);
+  Value alloc_buffer(Function& func, MemorySpace ms, std::vector<int64_t> l, std::string dtype);
+
+  Placeholder vectorize(Placeholder& src, uint32_t vectorWidth);
+
+  void memcpy(Tensor& dst, Tensor& src, Loop& compute_at);
+
 
 private:
   

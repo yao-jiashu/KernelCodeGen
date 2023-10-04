@@ -13,7 +13,8 @@ add_library(kcm_runtime
             ${scheduler_src} 
             ${auto_tune_src} 
             ${codegen_src}
-            KernelCodegen.cc)
+            KernelCodegen.cc
+            Expression.cc)
 
 #target_compile_options(kcm_runtime PRIVATE -frtti)
 # MLIR有自己的一套RTTI，需要关掉才能正确继承MLIR中类

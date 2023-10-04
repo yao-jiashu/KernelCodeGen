@@ -9,14 +9,14 @@ ComputeDAG::DType ComputeDAG::getDataType(std::string dtype) {
   return nullptr;
 }
 
-ComputeDAG::Placholder ComputeDAG::placeholder(
+ComputeDAG::Placeholder ComputeDAG::placeholder(
   std::vector<int64_t> l, 
   std::string dtype) {
   llvm::ArrayRef<int64_t> shape (l);
   auto dtype_ = getDataType(dtype);
   mlir::MemRefType tensorShape = mlir::MemRefType::get(
     shape, dtype_, {}, static_cast<int>(MemorySpace::global));
-  return builder.create<ComputeDAG::Placholder>(builder.getUnknownLoc(), tensorShape);
+  return builder.create<ComputeDAG::Placeholder>(builder.getUnknownLoc(), tensorShape);
 }
 
 ComputeDAG::GEMM ComputeDAG::gemm(ComputeDAG::Operand lhs, ComputeDAG::Operand rhs) {
