@@ -70,19 +70,19 @@ void SplitTargetAffineForOp::runOnOperation() {
               ivReplacement = builder.create<arith::AddIOp>(builder.getUnknownLoc(), 
                                 mul.getResult(), ivs[j]);
               // means should move with parent affine for Op
-              ivReplacement->setAttr("affine.compute_for", builder.getStringAttr("address"));
+              // ivReplacement->setAttr("affine.compute_for", builder.getStringAttr("address"));
             }
             if (i > 0) {
               auto factor = builder.create<arith::ConstantIndexOp>(builder.getUnknownLoc(), factors[i - 1]);
-              factor->setAttr("affine.compute_for", builder.getStringAttr("address"));
+              // factor->setAttr("affine.compute_for", builder.getStringAttr("address"));
               if (j != 0) {
                 mul = builder.create<arith::MulIOp>(builder.getUnknownLoc(), 
                         ivReplacement.getResult(), factor.getResult());
-                mul->setAttr("affine.compute_for", builder.getStringAttr("address"));
+                // mul->setAttr("affine.compute_for", builder.getStringAttr("address"));
               } else {
                 mul = builder.create<arith::MulIOp>(builder.getUnknownLoc(), 
                         ivs[j], factor.getResult());
-                mul->setAttr("affine.compute_for", builder.getStringAttr("address"));
+                // mul->setAttr("affine.compute_for", builder.getStringAttr("address"));
               }
             }
           }
@@ -230,7 +230,7 @@ void BindArchTag2AffineForOp::runOnOperation() {
 
       forOp->setAttr(std::string("gpu.parallel_arch"),
         builder.getStringAttr(attrName));
-      
+
       // auto iter = forOp.getInductionVar();
 
       // mlir::OpBuilder::InsertionGuard nestedGuard(builder);
@@ -443,14 +443,14 @@ void Scheduler::reorder(std::vector<Scheduler::Loop> loopsOrder) {
   return;
 }
 
-void Scheduler::bind(Scheduler::Loop forOp, GPUArch level) {
+Value Scheduler::bind(Scheduler::Loop forOp, GPUArch level) {
   PassManager pm(graph->module.getContext());
   OpPassManager &optPM = pm.nest<func::FuncOp>();
   optPM.addPass(BindArchTag2AffineForOpPass(forOp, level));
   if (failed(pm.run(graph->module))) {
     llvm::errs() << "Bind Arch Tag to loop failed.";
   }
-  return;
+  return forOp.getInductionVar();
 }
 
 Value Scheduler::cache_write(Value src, MemorySpace ms, Scheduler::Loop declare_at, Scheduler::Loop compute_at) {
@@ -566,8 +566,134 @@ Scheduler::Placeholder Scheduler::vectorize(Scheduler::Placeholder& src, uint32_
 
 }
 
-void Scheduler::memcpy(Tensor& dst, Tensor& src, Loop& compute_at) {
+void Scheduler::memcpy_async(Tensor& dst, Tensor& src, Loop& compute_at, std::vector<Value>& thread_hierarchy, ThreadScope scope) {
+
+  assert(dst.ms.isa<IntegerAttr>() &&
+        "Using `getMemorySpaceInteger` with non-Integer attribute");
+
+ auto dst_mem = static_cast<MemorySpace>(dst.ms.cast<IntegerAttr>().getInt());
+ auto src_mem = static_cast<MemorySpace>(src.ms.cast<IntegerAttr>().getInt());
+
+ MemcpyDirection direction;
+ if (src_mem == MemorySpace::global && dst_mem == MemorySpace::local) {
+  direction = MemcpyDirection::global2local;
+ } else if (src_mem == MemorySpace::local && dst_mem == MemorySpace::shared) {
+  direction = MemcpyDirection::local2shared;
+ } else if (src_mem == MemorySpace::local && dst_mem == MemorySpace::global) {
+  direction = MemcpyDirection::local2global;
+ } else if (src_mem == MemorySpace::shared && dst_mem == MemorySpace::local) {
+  direction = MemcpyDirection::shared2local;
+ }
+
+ if (direction == MemcpyDirection::global2local && scope == ThreadScope::block) {
+
+  // get total load times in scope;
+  auto total_times = src.load_times();
+
+  auto threadIdxY = thread_hierarchy[2];
+  auto threadIdxX = thread_hierarchy[3];
+
+  // For BlockArgument, first get the block then get the AffineForOp.
+  auto forOp = dyn_cast<Loop>(threadIdxY.getParentBlock()->getParentOp());
+
+  auto blockDimY = forOp.getConstantUpperBound();
+  auto blockDimX = forOp.getConstantUpperBound();
+
+  auto total_threads = blockDimY * blockDimX;
+  auto loopTimes = total_times / total_threads;
+
+  OpBuilder builder(&compute_at->getRegion(0));
+
+  src.offset = createOpsFromExpressions(src.start, builder);
+
+  /*
+  Mapping:
+  threadIdx  = threadIdx.y * blockDim.x + threadIdx.x; // thread index to 1 dim
+  threads_per_row = size[0] / pack_width;
+  y = (row_base + offset[0] + x / threads_per_row, offset[1] + x % threads_per_row;
+  */
+
+
+  auto blockDimXOp = builder.create<arith::ConstantIndexOp>(builder.getUnknownLoc(), blockDimX);
+
+  auto threadBlockBase = builder.create<arith::MulIOp>(builder.getUnknownLoc(), threadIdxY, blockDimXOp.getResult());
+
+  auto threadIdx = builder.create<arith::AddIOp>(builder.getUnknownLoc(), threadBlockBase.getResult(), threadIdxX);
+
+  auto threads_per_row = src.size[1] / src.pack_width;
+  auto rowStride = total_threads / threads_per_row;
+  auto totalRow = src.total_size() / src.size[1];
+
+  // auto threads_per_row_Op = builder.create<arith::ConstantOp>(
+    // builder.getUnknownLoc(), builder.getI64Type(), builder.getIntegerAttr(builder.getIndexType(), threads_per_row));
+  auto threads_per_row_Op = builder.create<arith::ConstantIndexOp>(builder.getUnknownLoc(), threads_per_row);
+
+
+  auto rowOffset = builder.create<arith::DivUIOp>(builder.getUnknownLoc(), threadIdx.getResult(), threads_per_row_Op.getResult());
+  auto colOffset = builder.create<arith::RemUIOp>(builder.getUnknownLoc(), threadIdx.getResult(), threads_per_row_Op.getResult());
+
+
+  auto memcpyLoopBody = [&](OpBuilder &builder, Location nestedLoc, Value iv, ValueRange iterArgs) {
+    OpBuilder::InsertionGuard nestedGuard(builder);
+
+    auto rank = src.size.size();
+
+    SmallVector<OpFoldResult, 4> srcOffsets, srcSizes, srcStrides;
+    SmallVector<OpFoldResult, 4> dstOffsets, dstSizes, dstStrides;
+
+    srcOffsets.reserve(rank);
+    srcSizes.reserve(rank);
+    srcStrides.reserve(rank);
+    dstOffsets.reserve(rank);
+    dstSizes.reserve(rank);
+    dstStrides.reserve(rank);
+
+    for (int i = 0; i < rank; i++) {
+      srcStrides.push_back(builder.getIndexAttr(1));
+      dstStrides.push_back(builder.getIndexAttr(1));
+      if (i < rank - 1) {
+        srcSizes.push_back(builder.getIndexAttr(1));
+        dstSizes.push_back(builder.getIndexAttr(1));
+      }
+    }
+    srcSizes.push_back(builder.getIndexAttr(src.pack_width));
+    dstSizes.push_back(builder.getIndexAttr(src.pack_width));
+
+    auto sum1 = builder.create<arith::AddIOp>(builder.getUnknownLoc(), iv, src.offset[0]);
+    auto rowIdx = builder.create<arith::AddIOp>(builder.getUnknownLoc(), sum1.getResult(), rowOffset.getResult());
   
+    auto colIdx = builder.create<arith::AddIOp>(builder.getUnknownLoc(), src.offset[1], colOffset.getResult());
+
+    srcOffsets.push_back(rowIdx.getResult());
+    srcOffsets.push_back(colIdx.getResult());
+
+
+    auto load_width = builder.create<arith::ConstantIndexOp>(builder.getUnknownLoc(), src.pack_width);
+    auto rowStrideOp = builder.create<arith::ConstantIndexOp>(builder.getUnknownLoc(), rowStride);
+
+    auto div = builder.create<arith::DivUIOp>(builder.getUnknownLoc(), iv, rowStrideOp.getResult());
+    auto mul = builder.create<arith::MulIOp>(builder.getUnknownLoc(), div.getResult(), load_width.getResult());
+    dstOffsets.push_back(builder.getIndexAttr(0));
+    dstOffsets.push_back(mul.getResult());
+
+    auto copySrc = builder.create<memref::SubViewOp>(
+        builder.getUnknownLoc(), src.memory, srcOffsets, srcSizes, srcStrides);
+    auto copyDest = builder.create<memref::SubViewOp>(
+        builder.getUnknownLoc(), dst.memory, dstOffsets, dstSizes, dstStrides);
+    
+    builder.create<memref::CopyOp>(builder.getUnknownLoc(), copySrc, copyDest);
+    builder.create<AffineYieldOp>(builder.getUnknownLoc());
+  };
+
+  
+  auto memcpyLoop = builder.create<Scheduler::Loop>(builder.getUnknownLoc(), 
+                  0, totalRow, rowStride, /*iterArgs=lvm::None*/ ValueRange({}), memcpyLoopBody);    
+
+ } else if (direction == MemcpyDirection::local2shared && scope == ThreadScope::warp) {
+
+ } else {
+  llvm::errs() << "Unsupport memcopy\n";
+ }
 }
 
 

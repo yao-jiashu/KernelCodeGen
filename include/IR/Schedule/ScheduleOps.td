@@ -88,4 +88,20 @@ def Schedule_SliceVectorOp : Schedule_Op<"vector_slice", [NoSideEffect]> {
   let hasFolder = 1;
 }
 
+def MemcpyAsyncOp : Schedule_Op<"relu_elementwise", [NoSideEffect]> {
+  let summary = "";
+  let description = [{
+  }];
+
+  let arguments = (ins AnyMemRef:$input);
+  let results = (outs AnyMemRef:$output);
+
+  let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
+
+  let extraClassDeclaration = [{
+  }];
+
+  // let hasFolder = 1;
+}
+
 #endif // Schedule_OPS

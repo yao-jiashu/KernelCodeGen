@@ -283,4 +283,96 @@ Scheduler::DType Scheduler::getDataType(std::string dtype) {
   return nullptr;
 }
 
+/// Creates an loop from the bounds known to be constants.
+Scheduler::Loop buildLoop(OpBuilder &builder, Location loc, int64_t lb, int64_t ub, int64_t step,
+                          Scheduler::Loop::BodyBuilderFn bodyBuilderFn) {
+  return builder.create<Scheduler::Loop>(loc, lb, ub, step, /*iterArgs=*/llvm::None, bodyBuilderFn);
+}
+
+
+/// Builds an affine loop nest, using "loopCreatorFn" to create individual loop
+/// operations.
+template <typename BoundListTy, typename LoopCreatorTy>
+static void buildLoopNestImpl(
+    OpBuilder &builder, Location loc, BoundListTy lbs, BoundListTy ubs,
+    ArrayRef<int64_t> steps,
+    Scheduler::LoopBuildFn bodyBuilderFn,
+    LoopCreatorTy &&loopCreatorFn) {
+  assert(lbs.size() == ubs.size() && "Mismatch in number of arguments");
+  assert(lbs.size() == steps.size() && "Mismatch in number of arguments");
+
+  // If there are no loops to be constructed, construct the body anyway.
+  OpBuilder::InsertionGuard guard(builder);
+  if (lbs.empty()) {
+    if (bodyBuilderFn)
+      bodyBuilderFn(builder, loc, ValueRange());
+    return;
+  }
+
+  // Create the loops iteratively and store the induction variables.
+  SmallVector<Value, 4> ivs;
+  ivs.reserve(lbs.size());
+  for (unsigned i = 0, e = lbs.size(); i < e; ++i) {
+    // Callback for creating the loop body, always creates the terminator.
+    auto loopBody = [&](OpBuilder &nestedBuilder, Location nestedLoc, Value iv,
+                        ValueRange iterArgs) {
+      ivs.push_back(iv);
+      // In the innermost loop, call the body builder.
+      if (i == e - 1 && bodyBuilderFn) {
+        OpBuilder::InsertionGuard nestedGuard(nestedBuilder);
+        bodyBuilderFn(nestedBuilder, nestedLoc, ivs);
+      }
+      nestedBuilder.create<AffineYieldOp>(nestedLoc);
+    };
+
+    // Delegate actual loop creation to the callback in order to dispatch
+    // between constant- and variable-bound loops.
+    auto loop = loopCreatorFn(builder, loc, lbs[i], ubs[i], steps[i], loopBody);
+    builder.setInsertionPointToStart(loop.getBody());
+  }
+}
+
+void Scheduler::buildLoopNest(
+    OpBuilder &builder, Location loc, 
+    ArrayRef<int64_t> lbs,
+    ArrayRef<int64_t> ubs, 
+    ArrayRef<int64_t> steps,
+    Scheduler::LoopBuildFn bodyBuilderFn) {
+  buildLoopNestImpl(builder, loc, lbs, ubs, steps, bodyBuilderFn, buildLoop);
+}
+
+std::vector<Value> Scheduler::createOpsFromExpressions(std::vector<Tensor::Expr>& exprs, OpBuilder& builder) {
+
+  auto getValueFromOperand = [&](Operand& opr) -> Value {
+    if (opr.type == Operand::OperandType::Value) {
+      return opr.value;
+    } else if (opr.type == Operand::OperandType::Integer) {
+      auto integer = builder.create<arith::ConstantIndexOp>(
+          builder.getUnknownLoc(), opr.integer);
+      return integer.getResult();
+    } else {
+      llvm::errs() << "Not support this Operand type in Expression\n";
+    }
+  };
+
+  std::vector<Value> res;
+  for (auto& expr : exprs) {
+    auto left = getValueFromOperand(expr->left);
+    auto right = getValueFromOperand(expr->right);
+
+    if (expr->op == Operator::Add) {
+      auto exprOp = builder.create<arith::AddIOp>(builder.getUnknownLoc(), left, right);
+      res.push_back(exprOp.getResult());
+    } else if (expr->op == Operator::Mul) {
+      auto exprOp = builder.create<arith::MulIOp>(builder.getUnknownLoc(), left, right);
+      res.push_back(exprOp.getResult());
+    } else {
+      llvm::errs() << "Not support this Operator in Expression\n";
+    }
+  }
+
+  return res;
+
+}
+
 }

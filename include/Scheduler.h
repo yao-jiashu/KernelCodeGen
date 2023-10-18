@@ -28,6 +28,14 @@ enum class ThreadScope {
   thread = 5,
 };
 
+enum class MemcpyDirection {
+  global2local = 1,
+  local2shared = 2,
+  global2shared = 3,
+  local2global = 4,
+  shared2local = 5,
+};
+
 inline std::string getGPUArchStr(GPUArch arch) {
   switch(arch) {
     case GPUArch::blockIdxX : return "blockIdx.x";
@@ -52,9 +60,9 @@ struct Tensor {
 
   Tensor(const Value& inputOp, 
     std::vector<Expr>&& start_, 
-    std::vector<Expr>&& end_, 
-    const std::vector<int>& pack_width_) : 
-      memory(inputOp), start(start_), end(end_), pack_width(pack_width_) {
+    std::vector<int>&& size_, 
+    int pack_width_) : 
+      memory(inputOp), start(start_), size(size_), pack_width(pack_width_) {
     
     auto memType = memory.getType();
 
@@ -69,12 +77,29 @@ struct Tensor {
     }
   }
 
+  uint64_t load_times() {
+    uint64_t times = 1;
+    for (int i = 0; i < rank; i++) {
+      times *= size[i];
+    }
+    return times / pack_width;
+  }
+
+  uint64_t total_size() {
+    uint64_t times = 1;
+    for (int i = 0; i < rank; i++) {
+      times *= size[i];
+    }
+    return times;
+  }
+
   Value memory;
   int rank;
   std::vector<int64_t> shape;
   std::vector<Expr> start;
-  std::vector<Expr> end;
-  std::vector<int> pack_width;
+  std::vector<Value> offset;
+  std::vector<int> size;
+  int pack_width;
   mlir::Attribute ms;
   ComputeDAG::DType dtype;
 };
@@ -85,6 +110,7 @@ public:
   using Placeholder = ComputeDAG::Placeholder;
   using Function = mlir::func::FuncOp;
   using Loop = AffineForOp;
+  using LoopBuildFn = llvm::function_ref<void(OpBuilder &, Location, ValueRange)>;
 
   Scheduler() = default;
   Scheduler(ComputeDAG* graph_) : graph(graph_) {}
@@ -93,14 +119,21 @@ public:
 
   std::vector<LoopInfo> collectLoops(Function& func);
   std::vector<Value> collectInputsAndOutputs();
+  std::vector<Value> createOpsFromExpressions(std::vector<Tensor::Expr>& exprs, OpBuilder& builder);
   DType getDataType(std::string dtype);
+  void buildLoopNest(
+    OpBuilder &builder, Location loc, 
+    ArrayRef<int64_t> lbs,
+    ArrayRef<int64_t> ubs, 
+    ArrayRef<int64_t> steps,
+    LoopBuildFn bodyBuilderFn);
   
   // Primitives
   std::vector<Loop> split(Loop forOp, 
     int num_output, const std::vector<int>& factors);
   // move the inner loop to the outer is always true;
   void reorder(std::vector<Loop> loopsOrder);
-  void bind(Loop forOp, GPUArch level);
+  Value bind(Loop forOp, GPUArch level);
 
   // The write buffer are ususlly private to each writer and only be writen once by its owner.
     // To store temperary variable.
@@ -118,7 +151,7 @@ public:
 
   Placeholder vectorize(Placeholder& src, uint32_t vectorWidth);
 
-  void memcpy(Tensor& dst, Tensor& src, Loop& compute_at);
+  void memcpy_async(Tensor& dst, Tensor& src, Loop& compute_at, std::vector<Value> & thread_hierarchy, ThreadScope scope);
 
 
 private:
