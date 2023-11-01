@@ -16,25 +16,26 @@ int main(int argc, char* argv[]) {
   auto B = graph.placeholder({k, n}, "float32");
   auto gemmOp = graph.gemm(A, B);
   graph.relu(gemmOp);
-  graph.dump();
+  // graph.dump();
 
   graph.operatorImpl();
   graph.dump();
 
   KCM kcm(&graph);
-
   kcm.setTarget(KC::Target::CUDA);
   
-  llvm::errs() << kcm.codeGen();
-
-  kcm.autoTune();
-  llvm::errs() << kcm.codeGen();
-
+  // llvm::errs() << kcm.codeGen();
+  // kcm.autoTune();
+  // llvm::errs() << kcm.codeGen();
   kcm.autoSchedule(KC::GEMMConfig({m, n, k}));
-  kcm.autoTune();
-  graph.dump();
-  llvm::errs() << kcm.codeGen();
 
+  // kcm.autoTune();
+  // printf("++++++++++++++++++++++++++++++++\n");
+  graph.dump();
+  
+  kcm.codeGen();
+
+  // llvm::errs() << kcm.codeGen();
   // kcm.graphTune();
   // kcm.autoSchedule();
   // kcm.autoTune();

@@ -3,9 +3,12 @@
 #include "GraphTune.h"
 #include "AutoConfig.h"
 #include "Scheduler.h"
+#include "Element_Collecter.h"
+#include "Element_Parser.h"
 #include "CodeGen.h"
 
 #include <string>
+#include <sstream>
 #include <initializer_list>
 
 namespace KernelCodegen {
@@ -24,7 +27,8 @@ public:
   void setTask(ComputeDAG* graph_) { 
     graph = graph_;
   }
-  std::string codeGen() {return {};}
+  std::string codeGen();
+  // std::string codeGen() {return {};}
   void autoTune() {}
   void autoSchedule(GEMMConfig&& config);
   void graphTune() {}

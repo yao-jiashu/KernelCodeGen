@@ -16,7 +16,8 @@ class Scheduler;
 class ComputeDAG {
 public:
   friend class Scheduler;
-
+  friend class Ele_Collecter;
+  
   using Placeholder = mlir::memref::AllocOp;
   using GEMM = mlir::compute_dag::GEMMOp;
   using Relu = mlir::compute_dag::ReluOp;

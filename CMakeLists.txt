@@ -4,7 +4,7 @@
 set(CMAKE_CUDA_COMPILER /usr/local/cuda-12.1/bin/nvcc)
 
 # set to debug mode
-set(CMAKE_BUILD_TYPE release)
+# set(CMAKE_BUILD_TYPE Release)
 
 
 # project config
