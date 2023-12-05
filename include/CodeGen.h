@@ -1,8 +1,8 @@
 #pragma once
-#include "IR/MLIRExtension.h"
+#include "IR.h"
 #include "Element_Collecter.h"
 
-namespace KernelCodegen {
+namespace KernelCodeGen {
 
 
 }

@@ -1,27 +1,33 @@
-file(GLOB compute_dag_src ./ComputeDAG/*.cc)
-file(GLOB graph_tune_src ./GraphTune/*.cc)
-file(GLOB scheduler_src ./Scheduler/*.cc)
-file(GLOB auto_tune_src ./AutoTune/*.cc)
-file(GLOB codegen_src ./CodeGen/*.cc)
+# file(GLOB compute_dag_src ./ComputeDAG/*.cc)
+# file(GLOB graph_tune_src ./GraphTune/*.cc)
+# file(GLOB scheduler_src ./Optimizer/*.cc)
+# file(GLOB auto_tune_src ./AutoTune/*.cc)
+# file(GLOB codegen_src ./CodeGen/*.cc)
 
 # ComputeDAG dialect
-add_subdirectory(IR)
+# add_subdirectory(IR)
 
-add_library(kcm_runtime 
-            ${compute_dag_src}
-            ${graph_tune_src} 
-            ${scheduler_src} 
-            ${auto_tune_src} 
-            ${codegen_src}
-            KernelCodegen.cc
-            Element_Collecter.cc
-            Element_Parser.cc
-            Expression.cc)
+file(GLOB frontend_src ./Frontend/*.cc)
+
+file(GLOB optimzer_src ./Optimizer/*.cc)
+
+add_library(kcg_runtime 
+            ${frontend_src}
+            ${optimzer_src}
+        #     ${graph_tune_src} 
+        #     ${scheduler_src} 
+        #     ${auto_tune_src} 
+        #     ${codegen_src}
+            KernelCodeGen.cc
+        #     Element_Collecter.cc
+        #     Element_Parser.cc
+        #     Expression.cc
+            )
 
 
-#target_compile_options(kcm_runtime PRIVATE -frtti)
+#target_compile_options(kcg_runtime PRIVATE -frtti)
 # MLIR有自己的一套RTTI，需要关掉才能正确继承MLIR中类
-target_compile_options(kcm_runtime PUBLIC -fno-rtti)
+target_compile_options(kcg_runtime PUBLIC -fno-rtti)
 
 set(LLVM_LINK_COMPONENTS
         Core
@@ -36,7 +42,7 @@ get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 get_property(translation_libs GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
 
-target_link_libraries(kcm_runtime
+target_link_libraries(kcg_runtime
         PUBLIC
         ${dialect_libs}
         ${conversion_libs}
@@ -60,5 +66,5 @@ target_link_libraries(kcm_runtime
         MLIRTargetLLVMIRExport
         MLIRFuncToLLVM
         # MLIREnhance
-        MLIRComputeDAG
+        # MLIRComputeDAG
         )

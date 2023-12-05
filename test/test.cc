@@ -1,43 +1,26 @@
 #include <iostream>
-#include "KernelCodegen.h"
-namespace KC = KernelCodegen;
-using KCM = KC::KernelCodegenMachine;
+#include <string>
+#include <vector>
+#include "KernelCodeGen.h"
+using namespace KernelCodeGen;
 
 
 int main(int argc, char* argv[]) {
 
-  KC::Context ctx;
-  KC::initContext(ctx);
-  KC::ComputeDAG graph("fuse_gemm_relu", ctx);
-  int m = 4096, n = 4096, k = 4096;
+  KernelCodeGenerator codegen("CUDA");
 
-  // define the inputs tensor
-  auto A = graph.placeholder({m, k}, "float32");
-  auto B = graph.placeholder({k, n}, "float32");
-  auto gemmOp = graph.gemm(A, B);
-  graph.relu(gemmOp);
-  // graph.dump();
+  auto graph = codegen.createGraph("fuse_matmul_relu");
 
-  graph.operatorImpl();
+  int m = 4096, n = 2048, k = 1024;
+
+  auto A = graph.create<PlaceHolder>(std::vector<int64_t>{m, k}, std::string{"float32"});
+  auto B = graph.create<PlaceHolder>(std::vector<int64_t>{k, n}, std::string{"float32"});
+  auto C = graph.create<Matmul>(A, B);
+  // auto D = graph.create<Relu>(C);
+
   graph.dump();
+  auto module = codegen.optimize(graph);
 
-  KCM kcm(&graph);
-  kcm.setTarget(KC::Target::CUDA);
-  
-  // llvm::errs() << kcm.codeGen();
-  // kcm.autoTune();
-  // llvm::errs() << kcm.codeGen();
-  kcm.autoSchedule(KC::GEMMConfig({m, n, k}));
+  codegen.dump(module);
 
-  // kcm.autoTune();
-  // printf("++++++++++++++++++++++++++++++++\n");
-  graph.dump();
-  
-  kcm.codeGen();
-
-  // llvm::errs() << kcm.codeGen();
-  // kcm.graphTune();
-  // kcm.autoSchedule();
-  // kcm.autoTune();
-  // llvm::errs() << kcm.codeGen();
 }

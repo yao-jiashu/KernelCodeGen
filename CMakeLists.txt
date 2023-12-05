@@ -10,7 +10,7 @@ set(CMAKE_CUDA_COMPILER /usr/local/cuda-12.1/bin/nvcc)
 # project config
 ###################################################################
 cmake_minimum_required(VERSION 3.20.0)
-project(KernelCodegen LANGUAGES CXX C)
+project(KernelCodeGen LANGUAGES CXX C)
 
 set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
 
@@ -45,13 +45,13 @@ else()
   set(MLIR_INCLUDE_DIRS "${MLIR_INCLUDE_DIR};${MLIR_GENERATED_INCLUDE_DIR}")
 endif()
 
-set(KernelCodegen_SOURCE_DIR ${PROJECT_SOURCE_DIR})
-set(KernelCodegen_BINARY_DIR ${PROJECT_BINARY_DIR})
+set(KernelCodeGen_SOURCE_DIR ${PROJECT_SOURCE_DIR})
+set(KernelCodeGen_BINARY_DIR ${PROJECT_BINARY_DIR})
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
-include_directories(${KernelCodegen_SOURCE_DIR}/include)
-include_directories(${KernelCodegen_BINARY_DIR}/include)
-include_directories(${KernelCodegen_SOURCE_DIR}/build/include)
+include_directories(${KernelCodeGen_SOURCE_DIR}/include)
+include_directories(${KernelCodeGen_BINARY_DIR}/include)
+include_directories(${KernelCodeGen_SOURCE_DIR}/build/include)
 
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
