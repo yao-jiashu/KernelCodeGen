@@ -1,0 +1,834 @@
+Matrix size : 
+ --- M --- : 4096
+ --- N --- : 2048
+ --- K --- : 1024
+
+Occupancy: 25%
+My Matmul Latency = 1.80746 ms
+
+cublas Latency(NN) = 1.70506 ms
+cublas Ratio(NN) = 94.3346%
+
+cublas Latency(TT) = 1.75186 ms
+cublas Ratio(TT) = 96.9237%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M256_N256_K256.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M256_N256_K256.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M256_N256_K256.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M256_N256_K256.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 256
+ --- N --- : 256
+ --- K --- : 256
+
+Occupancy: 25%
+My Matmul Latency = 0.100966 ms
+
+cublas Latency(NN) = 0.0228352 ms
+cublas Ratio(NN) = 22.6166%
+
+cublas Latency(TT) = 0.0236544 ms
+cublas Ratio(TT) = 23.428%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M512_N512_K512.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M512_N512_K512.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M512_N512_K512.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M512_N512_K512.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 512
+ --- N --- : 512
+ --- K --- : 512
+
+Occupancy: 25%
+My Matmul Latency = 0.193843 ms
+
+cublas Latency(NN) = 0.0513024 ms
+cublas Ratio(NN) = 26.4659%
+
+cublas Latency(TT) = 0.0526336 ms
+cublas Ratio(TT) = 27.1527%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M768_N768_K768.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M768_N768_K768.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M768_N768_K768.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M768_N768_K768.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 768
+ --- N --- : 768
+ --- K --- : 768
+
+Occupancy: 25%
+My Matmul Latency = 0.290304 ms
+
+cublas Latency(NN) = 0.116122 ms
+cublas Ratio(NN) = 40%
+
+cublas Latency(TT) = 0.113869 ms
+cublas Ratio(TT) = 39.224%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M1024_N1024_K1024.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M1024_N1024_K1024.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M1024_N1024_K1024.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M1024_N1024_K1024.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 1024
+ --- N --- : 1024
+ --- K --- : 1024
+
+Occupancy: 25%
+My Matmul Latency = 0.384614 ms
+
+cublas Latency(NN) = 0.237158 ms
+cublas Ratio(NN) = 61.6613%
+
+cublas Latency(TT) = 0.244838 ms
+cublas Ratio(TT) = 63.6581%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M1536_N1536_K1536.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M1536_N1536_K1536.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M1536_N1536_K1536.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M1536_N1536_K1536.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 1536
+ --- N --- : 1536
+ --- K --- : 1536
+
+Occupancy: 25%
+My Matmul Latency = 1.10305 ms
+
+cublas Latency(NN) = 0.76585 ms
+cublas Ratio(NN) = 69.43%
+
+cublas Latency(TT) = 0.799027 ms
+cublas Ratio(TT) = 72.4378%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M2048_N2048_K2048.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M2048_N2048_K2048.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M2048_N2048_K2048.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M2048_N2048_K2048.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 2048
+ --- N --- : 2048
+ --- K --- : 2048
+
+Occupancy: 25%
+My Matmul Latency = 2.17078 ms
+
+cublas Latency(NN) = 1.77295 ms
+cublas Ratio(NN) = 81.6737%
+
+cublas Latency(TT) = 1.78668 ms
+cublas Ratio(TT) = 82.3058%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M3072_N3072_K3072.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M3072_N3072_K3072.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M3072_N3072_K3072.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M3072_N3072_K3072.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 3072
+ --- N --- : 3072
+ --- K --- : 3072
+
+Occupancy: 25%
+My Matmul Latency = 6.43215 ms
+
+cublas Latency(NN) = 5.77966 ms
+cublas Ratio(NN) = 89.8558%
+
+cublas Latency(TT) = 5.81734 ms
+cublas Ratio(TT) = 90.4416%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M4096_N4096_K4096.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M4096_N4096_K4096.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M4096_N4096_K4096.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M4096_N4096_K4096.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 4096
+ --- N --- : 4096
+ --- K --- : 4096
+
+Occupancy: 25%
+My Matmul Latency = 11.5102 ms
+
+cublas Latency(NN) = 13.0511 ms
+cublas Ratio(NN) = 113.387%
+
+cublas Latency(TT) = 13.3132 ms
+cublas Ratio(TT) = 115.665%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M5120_N5120_K5120.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M5120_N5120_K5120.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M5120_N5120_K5120.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M5120_N5120_K5120.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 5120
+ --- N --- : 5120
+ --- K --- : 5120
+
+Occupancy: 25%
+My Matmul Latency = 15.3833 ms
+
+cublas Latency(NN) = 21.1388 ms
+cublas Ratio(NN) = 137.414%
+
+cublas Latency(TT) = 17.5431 ms
+cublas Ratio(TT) = 114.039%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M6144_N6144_K6144.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M6144_N6144_K6144.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M6144_N6144_K6144.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M6144_N6144_K6144.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 6144
+ --- N --- : 6144
+ --- K --- : 6144
+
+Occupancy: 25%
+My Matmul Latency = 25.4526 ms
+
+cublas Latency(NN) = 24.9598 ms
+cublas Ratio(NN) = 98.0637%
+
+cublas Latency(TT) = 25.0947 ms
+cublas Ratio(TT) = 98.5935%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M7168_N7168_K7168.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M7168_N7168_K7168.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M7168_N7168_K7168.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M7168_N7168_K7168.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 7168
+ --- N --- : 7168
+ --- K --- : 7168
+
+Occupancy: 25%
+My Matmul Latency = 40.4135 ms
+
+cublas Latency(NN) = 40.9393 ms
+cublas Ratio(NN) = 101.301%
+
+cublas Latency(TT) = 39.7394 ms
+cublas Ratio(TT) = 98.332%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M8192_N8192_K8192.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M8192_N8192_K8192.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M8192_N8192_K8192.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M8192_N8192_K8192.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 8192
+ --- N --- : 8192
+ --- K --- : 8192
+
+Occupancy: 25%
+My Matmul Latency = 58.7893 ms
+
+cublas Latency(NN) = 57.8315 ms
+cublas Ratio(NN) = 98.3709%
+
+cublas Latency(TT) = 57.7608 ms
+cublas Ratio(TT) = 98.2505%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M9216_N9216_K9216.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M9216_N9216_K9216.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M9216_N9216_K9216.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M9216_N9216_K9216.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 9216
+ --- N --- : 9216
+ --- K --- : 9216
+
+Occupancy: 25%
+My Matmul Latency = 83.749 ms
+
+cublas Latency(NN) = 82.2254 ms
+cublas Ratio(NN) = 98.1807%
+
+cublas Latency(TT) = 82.0887 ms
+cublas Ratio(TT) = 98.0175%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M10240_N10240_K10240.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M10240_N10240_K10240.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M10240_N10240_K10240.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M10240_N10240_K10240.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 10240
+ --- N --- : 10240
+ --- K --- : 10240
+
+Occupancy: 25%
+My Matmul Latency = 115.295 ms
+
+cublas Latency(NN) = 114.848 ms
+cublas Ratio(NN) = 99.6125%
+
+cublas Latency(TT) = 115.813 ms
+cublas Ratio(TT) = 100.449%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M11264_N11264_K11264.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M11264_N11264_K11264.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M11264_N11264_K11264.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M11264_N11264_K11264.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 11264
+ --- N --- : 11264
+ --- K --- : 11264
+
+Occupancy: 25%
+My Matmul Latency = 153.205 ms
+
+cublas Latency(NN) = 152.771 ms
+cublas Ratio(NN) = 99.7167%
+
+cublas Latency(TT) = 160.515 ms
+cublas Ratio(TT) = 104.771%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M12288_N12288_K12288.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M12288_N12288_K12288.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M12288_N12288_K12288.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M12288_N12288_K12288.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 12288
+ --- N --- : 12288
+ --- K --- : 12288
+
+Occupancy: 25%
+My Matmul Latency = 198.845 ms
+
+cublas Latency(NN) = 198.372 ms
+cublas Ratio(NN) = 99.7619%
+
+cublas Latency(TT) = 194.916 ms
+cublas Ratio(TT) = 98.024%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M13312_N13312_K13312.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M13312_N13312_K13312.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M13312_N13312_K13312.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M13312_N13312_K13312.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 13312
+ --- N --- : 13312
+ --- K --- : 13312
+
+Occupancy: 25%
+My Matmul Latency = 253.223 ms
+
+cublas Latency(NN) = 252.785 ms
+cublas Ratio(NN) = 99.8268%
+
+cublas Latency(TT) = 267.162 ms
+cublas Ratio(TT) = 105.505%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M14336_N14336_K14336.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M14336_N14336_K14336.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M14336_N14336_K14336.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M14336_N14336_K14336.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 14336
+ --- N --- : 14336
+ --- K --- : 14336
+
+Occupancy: 25%
+My Matmul Latency = 315.864 ms
+
+cublas Latency(NN) = 316.803 ms
+cublas Ratio(NN) = 100.297%
+
+cublas Latency(TT) = 308.801 ms
+cublas Ratio(TT) = 97.7638%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M15360_N15360_K15360.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M15360_N15360_K15360.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M15360_N15360_K15360.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M15360_N15360_K15360.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 15360
+ --- N --- : 15360
+ --- K --- : 15360
+
+Occupancy: 25%
+My Matmul Latency = 389.513 ms
+
+cublas Latency(NN) = 388.978 ms
+cublas Ratio(NN) = 99.8624%
+
+cublas Latency(TT) = 379.358 ms
+cublas Ratio(TT) = 97.3929%
+
+Consolidate compiler generated dependencies of target matmul
+[ 50%] Building CUDA object test/kernels/CMakeFiles/matmul.dir/matmul.cu.o
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M16384_N16384_K16384.cu(7): warning #177-D: variable "expr0" was declared but never referenced
+    int expr0 = (blockIdx.y * 128);
+        ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M16384_N16384_K16384.cu(8): warning #177-D: variable "expr1" was declared but never referenced
+    int expr1 = (blockIdx.x * 128);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M16384_N16384_K16384.cu(23): warning #177-D: variable "expr2" was declared but never referenced
+    int expr2 = (threadIdx.y * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/Matmul_M16384_N16384_K16384.cu(24): warning #177-D: variable "expr3" was declared but never referenced
+    int expr3 = (threadIdx.x * 8);
+        ^
+
+/Workspace/ICT/KernelCodegen/test/kernels/matmul.cu(126): warning #177-D: variable "BLOCK_SIZE_K" was declared but never referenced
+  const int BLOCK_SIZE_K = 8;
+            ^
+
+[100%] Linking CUDA executable /Workspace/ICT/KernelCodegen/bin/matmul
+[100%] Built target matmul
+Find the device successfully.
+Matrix size : 
+ --- M --- : 16384
+ --- N --- : 16384
+ --- K --- : 16384
+
+Occupancy: 25%
+My Matmul Latency = 473.264 ms
+
+cublas Latency(NN) = 472.215 ms
+cublas Ratio(NN) = 99.7784%
+
+cublas Latency(TT) = 461.653 ms
+cublas Ratio(TT) = 97.5467%
+

@@ -1,0 +1,5 @@
+set(CUDA_ARCH_VAR 80)
+set(CUDA_MATH_LIBS_PATH /usr/local/cuda-12.1)
+# set(CUDNN_PATH /Workspace/env)
+# set(CUTLASS_PATH /Workspace/cutlass-use/cutlass/include)
+# set(CUTLASS_TOOLS_PATH /Workspace/cutlass-use/cutlass/tools/util/include)

@@ -35,22 +35,6 @@ struct Rewriter {
     } 
   }
 
-  static std::vector<int64_t> getParallelNumber(mlir::AffineParallelOp parallelLevel, int64_t& totalNumber) {
-    auto dim = parallelLevel.getNumDims();
-    totalNumber = 1;
-    std::vector<int64_t> result;
-    for (int i = 0; i < dim; i++) {
-      auto map = parallelLevel.getUpperBoundMap(i);
-      auto exprs = map.getResults();
-      assert(exprs.size() == 1);
-      auto constExpr = exprs[0].dyn_cast<mlir::AffineConstantExpr>();
-      assert(constExpr);
-      totalNumber *= constExpr.getValue();
-      result.push_back(constExpr.getValue());
-    }
-    return result;
-  }
-
   static std::vector<mlir::Value> getParallelIdx(mlir::AffineParallelOp parallelLevel) {
     auto dim = parallelLevel.getNumDims();
     std::vector<mlir::Value> idxes;
@@ -157,7 +141,9 @@ struct Rewriter {
   /// @param buffer 
   /// @param compute_at 
   /// @return
-  static std::vector<std::vector<mlir::AffineForOp>> pipeline(std::vector<mlir::AffineForOp> readBodys, mlir::Value buffer, mlir::AffineForOp compute_at);
+  static std::vector<std::vector<mlir::AffineForOp>> pipeline(std::vector<mlir::AffineForOp> readBodys, mlir::Value& buffer, mlir::AffineForOp compute_at);
+
+  static void change_double_buffer(mlir::AffineForOp, mlir::Value buffer);
 
   /// @brief 
   static void detach_last_loop(mlir::AffineForOp forOp);

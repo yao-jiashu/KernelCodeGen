@@ -2,6 +2,7 @@
 
 #include "IR/IR.h"
 #include "enum.h"
+#include "log.h"
 
 namespace KernelCodeGen {
 
@@ -25,9 +26,10 @@ struct ComputeDAG {
   }
 
   void dump(const std::string& info = "") {
-    llvm::outs() << "-----------------------------------------------------------\n";
-    llvm::outs() << "           " << info << "\n";
-    llvm::outs() << "-----------------------------------------------------------\n";
+    if (KCGLog::level == Log::Release) return;
+    llvm::errs() << "-----------------------------------------------------------\n";
+    llvm::errs() << "           " << info << "\n";
+    llvm::errs() << "-----------------------------------------------------------\n";
     module->dump();
     if (mlir::failed(mlir::verify(module))) {
       module->emitError("graph verification error");

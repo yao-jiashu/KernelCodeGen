@@ -750,7 +750,7 @@ mlir::AffineForOp Rewriter::vectorize(mlir::AffineForOp readOrWrite, int64_t wid
   });
 }
 
-std::vector<std::vector<mlir::AffineForOp>> Rewriter::pipeline(std::vector<mlir::AffineForOp> readBodys, mlir::Value buffer, mlir::AffineForOp compute_at) {
+std::vector<std::vector<mlir::AffineForOp>> Rewriter::pipeline(std::vector<mlir::AffineForOp> readBodys, mlir::Value& buffer, mlir::AffineForOp compute_at) {
 
   // bool shared;
   // if (memorySpace == static_cast<int>(MemorySpace::shared)) {
@@ -1117,6 +1117,7 @@ std::vector<std::vector<mlir::AffineForOp>> Rewriter::pipeline(std::vector<mlir:
 
   /* step4: clear work*/
   defineBufferOp.erase();
+  buffer = doubleBuffer;
 
 
   return results;
@@ -1553,5 +1554,36 @@ void Rewriter::unrollAttribute(mlir::ModuleOp module, mlir::function_ref<bool(ml
 //   }
 //   return;
 // }
+
+void Rewriter::change_double_buffer(mlir::AffineForOp scope, mlir::Value buffer) {
+  scope.walk<mlir::WalkOrder::PostOrder>([&](mlir::AffineVectorLoadOp load) {
+    auto mem = load.getMemref();
+    if (mem == buffer) {
+      auto builder = mlir::OpBuilder(load);
+      auto vecT = load.getVectorType();
+      auto oldMap = load.getAffineMap();
+      auto operands = load.getMapOperands();
+      auto oldExprs = oldMap.getResults();
+      llvm::SmallVector<mlir::AffineExpr> exprs;
+      for (int i = 0; i < oldExprs.size(); i++) {
+        if (i == 0) {
+          auto binaryExpr = oldExprs[i].dyn_cast<mlir::AffineBinaryOpExpr>();
+          assert(binaryExpr && binaryExpr.getKind() == mlir::AffineExprKind::Mod);
+          auto constExpr = binaryExpr.getRHS().dyn_cast<mlir::AffineConstantExpr>();
+          assert(constExpr && constExpr.getValue() == 2);
+          exprs.push_back((binaryExpr.getLHS() + 1) % 2);
+        } else {
+          exprs.push_back(oldExprs[i]);
+        }
+      }
+      auto map = mlir::AffineMap::get(/*dimCount*/oldMap.getNumDims(), 0, llvm::ArrayRef<mlir::AffineExpr>(exprs), load->getContext());
+      auto ld = builder.create<mlir::AffineVectorLoadOp>(builder.getUnknownLoc(), vecT, buffer, map, operands);
+      load.getResult().replaceAllUsesWith(ld.getResult());
+      load.erase();
+    }
+  });
+  ///TODO: support more operations for change double buffer.
+  
+}
 
 }

@@ -20,6 +20,26 @@ struct CompareLoop {
 struct Analyzer {
   Analyzer() = default;
   static std::vector<mlir::AffineForOp> collectOutermostLoop(mlir::ModuleOp& module); 
+
+  /// @brief 
+  /// @param parallelLevel 
+  /// @param totalNumber 
+  /// @return 
+  static std::vector<int64_t> getParallelNumber(mlir::AffineParallelOp parallelLevel, int64_t& totalNumber) {
+    auto dim = parallelLevel.getNumDims();
+    totalNumber = 1;
+    std::vector<int64_t> result;
+    for (int i = 0; i < dim; i++) {
+      auto map = parallelLevel.getUpperBoundMap(i);
+      auto exprs = map.getResults();
+      assert(exprs.size() == 1);
+      auto constExpr = exprs[0].dyn_cast<mlir::AffineConstantExpr>();
+      assert(constExpr);
+      totalNumber *= constExpr.getValue();
+      result.push_back(constExpr.getValue());
+    }
+    return result;
+  }
 };
 
 }

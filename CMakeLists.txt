@@ -10,7 +10,7 @@ set(CMAKE_CUDA_COMPILER /usr/local/cuda-12.1/bin/nvcc)
 # project config
 ###################################################################
 cmake_minimum_required(VERSION 3.20.0)
-project(KernelCodeGen LANGUAGES CXX C)
+project(KernelCodeGen LANGUAGES CXX C CUDA)
 
 set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
 

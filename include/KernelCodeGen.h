@@ -2,6 +2,8 @@
 
 #include "Frontend/Operators.h"
 #include "Optimizer/Optimizer.h"
+#include "Backend/CUDA.h"
+#include "log.h"
 
 // #include "ComputeDAG.h"
 // #include "GraphTune.h"
@@ -13,6 +15,7 @@
 
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <initializer_list>
 #include <climits>
 #include <cfloat>
@@ -48,6 +51,7 @@ public:
   }
 
   ComputeDAG& createGraph(const std::string& graphName) {
+    minLatency = FLT_MAX;
     graph.module = mlir::ModuleOp::create(
       builder.getUnknownLoc(),
       mlir::Optional<mlir::StringRef>(std::move(graphName)));
@@ -60,14 +64,33 @@ public:
   }
 
   void dump(mlir::ModuleOp& module, const std::string& info = "") {
-    llvm::outs() << "----------------------------------------------------------\n";
-    llvm::outs() << "           " << info << "\n";
-    llvm::outs() << "----------------------------------------------------------\n";
+    if (KCGLog::level == Log::Release) return;
+    llvm::errs() << "----------------------------------------------------------\n";
+    llvm::errs() << "           " << info << "\n";
+    llvm::errs() << "----------------------------------------------------------\n";
     module->dump();
     if (mlir::failed(mlir::verify(module))) {
       module->emitError("module verification error");
       assert(false);
     }
+  }
+
+  void save(const std::string& str, const std::string& file) {
+    if (file == "terminal") {
+      llvm::outs() << str;
+      return;
+    }
+    std::ofstream fileWriter;
+    fileWriter.open(file.c_str());
+    std::stringstream stringStream;
+    if (fileWriter.is_open()) {
+      fileWriter << str;
+      fileWriter.close();
+    } else {
+      llvm::errs() << "Can't open file \"" << file << "\"\n";
+      return;
+    }
+    return;
   }
 
   void resetModule(mlir::ModuleOp& module) {
@@ -89,6 +112,16 @@ public:
 
   float evaluate(mlir::ModuleOp& module) {
     return 0.0f;
+  }
+
+  std::string codegen(mlir::ModuleOp module) {
+    if (platform == "CUDA") {
+      return std::move(CUDAGen(module));
+    }
+  }
+
+  void setLogMode(Log level) {
+    KCGLog::level = level;
   }
 
 private:
