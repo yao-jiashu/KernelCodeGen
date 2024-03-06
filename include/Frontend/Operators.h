@@ -6,6 +6,10 @@
 
 namespace KernelCodeGen {
 
+mlir::func::FuncOp buildFuction(mlir::ModuleOp module, mlir::OpBuilder& builder, 
+ const std::string& funcName, const std::vector<mlir::Type>& inputsTypes, 
+ const std::vector<mlir::Type>& outputsTypes);
+ 
 // Responsible for the construction of the graph,
 //  and store graph module. 
 struct ComputeDAG {
@@ -67,22 +71,34 @@ struct Operator {
 
 
 struct PlaceHolder : Operator<PlaceHolder> {
-  static mlir::Value build(ComputeDAG* graph,
-    const std::vector<int64_t>& shapes, 
+  static mlir::Value build(ComputeDAG* graph, const std::vector<int64_t>& shapes, 
     const std::string& dtype);
 };
 
 struct Matmul : Operator<Matmul> {
-  static mlir::Value build(ComputeDAG* graph,
-    mlir::Value A, mlir::Value B, 
+  static mlir::Value build(ComputeDAG* graph, mlir::Value A, mlir::Value B, MemorySpace ms,
     const std::string& dtype = {""});
 };
 
 struct Relu : Operator<Relu> {
-  static mlir::Value build(ComputeDAG* graph,
-    mlir::Value input,
+  static mlir::Value build(ComputeDAG* graph, mlir::Value input, MemorySpace ms,
     const std::string& dtype = {""});
 };
 
+struct BatchedMatmul : Operator<BatchedMatmul> {
+  static mlir::Value build(ComputeDAG* graph, mlir::Value A, Layout layoutA,
+    mlir::Value B, Layout layoutB, const std::string& dtype = {""});
+};
+
+// Compute the sum of the lowest dims and divide the result elementwisely.
+// If the axis = 1, the reduction scope is the last dim.
+struct Softmax : Operator<Softmax> {
+  static mlir::Value build(ComputeDAG* graph, mlir::Value input, 
+    int axis = -1, MemorySpace ms = MemorySpace::global, const std::string& dtype = {""});
+};
+
+struct Transpose : Operator<Transpose> {
+  static mlir::Value build(ComputeDAG* graph, mlir::Value input);
+};
 
 }

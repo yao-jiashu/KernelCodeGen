@@ -73,7 +73,40 @@ struct Rewriter {
   /// @param shape 
   /// @param dtype 
   /// @return 
-  static mlir::Value alloc_buffer(mlir::AffineParallelOp parallelLevel, MemorySpace ms, const std::vector<int64_t> shape, mlir::Type dtype);
+  template<typename ParentOpType>
+  static mlir::Value alloc_buffer(ParentOpType father, MemorySpace ms, 
+                          const std::vector<int64_t> shape_, mlir::Type dtype) {
+    llvm::ArrayRef<int64_t> shape (shape_);
+    mlir::MemRefType tensorShape = mlir::MemRefType::get(
+      shape, dtype, {}, static_cast<int>(ms));
+    
+    mlir::OpBuilder builder(father->getContext());
+    builder.setInsertionPointToStart(father.getBody());
+    return builder.create<mlir::memref::AllocOp>(builder.getUnknownLoc(), tensorShape)->getResult(0);
+  }
+
+  template<typename ContextOp>
+  static mlir::Value alloc_buffer(ContextOp contextOp, Position pos, MemorySpace ms, 
+                          const std::vector<int64_t> shape_, mlir::Type dtype) {
+    llvm::ArrayRef<int64_t> shape (shape_);
+    mlir::MemRefType tensorShape = mlir::MemRefType::get(
+      shape, dtype, {}, static_cast<int>(ms));
+    
+    switch (pos) {
+      case Position::before: {
+        mlir::OpBuilder builder(contextOp);
+        return builder.create<mlir::memref::AllocOp>(builder.getUnknownLoc(), tensorShape)->getResult(0);
+      }
+      case Position::after: {
+        mlir::OpBuilder builder(contextOp->getContext());
+        builder.setInsertionPointAfter(contextOp);
+        return builder.create<mlir::memref::AllocOp>(builder.getUnknownLoc(), tensorShape)->getResult(0);
+      }
+      default: {
+        assert(false);
+      }
+    }
+  }
 
   /// @brief 
   /// @param src 
@@ -88,6 +121,9 @@ struct Rewriter {
                                    llvm::SmallVector<mlir::Value> operands, int64_t width,
                                    mlir::AffineForOp compute_at, Position pos);
 
+  static mlir::AffineForOp read(mlir::OpBuilder& builder, mlir::Value src, mlir::Value dst, 
+    mlir::AffineMap map, llvm::SmallVector<mlir::Value> operands, int64_t width);
+
   /// @brief 
   /// @param src 
   /// @param dst 
@@ -100,6 +136,9 @@ struct Rewriter {
   static mlir::AffineForOp write(mlir::Value src, mlir::Value dst, mlir::AffineMap map, 
                                    llvm::SmallVector<mlir::Value> operands, int64_t width,
                                    mlir::AffineForOp compute_at, Position pos);
+
+  static mlir::AffineForOp write(mlir::OpBuilder& builder, mlir::Value src, mlir::Value dst, 
+    mlir::AffineMap map, llvm::SmallVector<mlir::Value> operands, int64_t width);
 
   /// @brief 
   /// @param compute_at 
@@ -180,6 +219,13 @@ struct Rewriter {
   /// @brief 
   /// @param module 
   static void loweringAffineDialect(mlir::ModuleOp module);
+
+  static void set_buffer(mlir::OpBuilder& builder, mlir::Value mem, mlir::Value targetValue);
+
+  static mlir::AffineForOp create_constant_loop(mlir::OpBuilder& builder, int64_t lowerBound, int64_t upperBound, int64_t step);
+
+  static mlir::AffineForOp outer_product(mlir::OpBuilder& builder, mlir::Value tileC, 
+    mlir::Value fragA, mlir::Value fragB, int64_t m, int64_t n);
 };
 
 }

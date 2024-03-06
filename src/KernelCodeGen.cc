@@ -14,9 +14,22 @@ mlir::ModuleOp& KernelCodeGenerator::optimize(ComputeDAG& graph_) {
 
   for (auto& opt : opts) {
     backupModule(module);
-    if (*opt == MatmulOprimizer()) {
+    if (*opt == FMHAOptimizer()) {
+      for (auto& fmhaConfig : fmhaConfigs) {
+        FMHAOptimizer::fmhaConfig = fmhaConfig;
+        resetModule(module);
+        if (opt->applicable(module)) {
+          opt->applyOptimzer(module, builder);
+          auto curLatency = evaluate(module);
+          if (curLatency < minLatency) {
+            minLatency = curLatency;
+            saveBestModule(module);
+          }
+        }
+      }
+    } else if (*opt == MatmulOptimizer()) {
       for (auto& matmulConfig : matmulConfigs) {
-        MatmulOprimizer::matmulConfig = matmulConfig;
+        MatmulOptimizer::matmulConfig = matmulConfig;
         resetModule(module);
         if (opt->applicable(module)) {
           opt->applyOptimzer(module, builder);

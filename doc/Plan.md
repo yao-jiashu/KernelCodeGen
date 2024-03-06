@@ -52,3 +52,60 @@
 - take_off_true_if[Pass]: 将条件恒成立的if判断摘掉
 - delete_false_if[Pass]: 如果if判断恒不成立则删除if判断，包括if里面的operation
 - unroll[Pass]: 对循环次数已知且小于指定次数的循环进行展开
+
+# 2023.12.14
+
+### prority 0
+**前端**
+- Transformer中的算子的计算描述：TODO(xbk)
+- Transformer中常见算子的输入大小：TODO(?)
+
+**优化器**
+- Analyzer && Rewrite: Done
+- - split, reorder, parallel, read, write, vectorize, cache_read, cache_write, pipeline......
+- Matmul Optimizer: Done
+- Attention Optimizer: TODO (yjs)
+- KernelFusion Optimizer: TODO (yjs)
+
+**后端**
+- 生成 Matmul CUDA C 代码: Done(yjs)
+- - 正确性测试：Done
+- - 性能测试：4096以上的方阵，性能持平 Cublas
+
+# 2023.12.18
+
+### prority 0
+**前端**
+- Transformer中的算子的计算描述：TODO(xbk)
+- - 参考Rewriter实现
+- Transformer中常见算子的输入大小：TODO(?)
+- - 调研(yjs)
+
+**优化器**
+- Analyzer && Rewrite: Done
+- - split, reorder, parallel, read, write, vectorize, cache_read, cache_write, pipeline......
+- Matmul Optimizer: Done
+- Attention Optimizer: TODO (yjs)
+- KernelFusion Optimizer: TODO (yjs)
+
+**后端**
+- 生成 Matmul CUDA C 代码: Done(yjs)
+- - 正确性测试：Done
+- - 性能测试：4096以上的方阵，性能持平 Cublas
+
+
+# 1.15
+## 3月前
+- flash-attention2 CUDA Core优化实现：1.20
+- flash-attention2 参数调优(不需要实现，但需要有逻辑)：1.27
+- flash-attention2 MLIR实现：2.29
+
+- batched GEMM MLIR实现： 2.29
+
+- Transformer模型端到端测试：2.29
+
+## 4月前
+- batched GEMM（Transformer中参数调优）：3.8
+- DCU后端代码生成：3.8
+- 算子融合策略 MLIR实现：3.15
+- 端到端测试：3.31

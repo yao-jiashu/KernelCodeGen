@@ -29,10 +29,15 @@ public:
     graph(builder),
     platform(std::move(platform_)) {
     initMLIRContext();
-    opts.push_back(std::move(std::make_unique<MatmulOprimizer>()));
+    // opts.push_back(std::move(std::make_unique<MatmulOptimizer>()));
+    opts.push_back(std::move(std::make_unique<FMHAOptimizer>()));
     matmulConfigs = {
       { {"BLOCK_SIZE_M", 128}, {"BLOCK_SIZE_N", 128}, {"BLOCK_SIZE_K", 8}, {"GROUP_SIZE_M", 8}, 
         {"THREAD_SIZE_M", 8}, {"THREAD_SIZE_N", 8}, {"VECTORIZE_WIDTH", 4}, {"WARP_SIZE", 32}}
+    };
+    fmhaConfigs = {
+      {{"BLOCK_SIZE", 128}, {"HdxBr", 128 * 64}, {"BrxBc", 128 * 64}, {"WarpX_O", 2}, {"Slice", 8},
+       {"BrTileS", 8}, {"BcTileS", 8}, {"BrTileO", 8}, {"HdTileO", 8}, {"Width", 4}, {"WARP_SIZE", 32}}
     };
   }
   KernelCodeGenerator() = delete;
@@ -47,6 +52,7 @@ public:
     context.getOrLoadDialect<mlir::gpu::GPUDialect>();
     context.getOrLoadDialect<mlir::vector::VectorDialect>();
     context.getOrLoadDialect<mlir::scf::SCFDialect>();
+    context.getOrLoadDialect<mlir::math::MathDialect>();
     mlir::registerAllPasses();
   }
 
@@ -134,6 +140,7 @@ private:
   float minLatency = FLT_MAX;
   std::vector<std::unique_ptr<Optimizer>> opts;
   std::vector<std::map<std::string, int>> matmulConfigs;
+  std::vector<std::map<std::string, int>> fmhaConfigs;
 };
 
 }

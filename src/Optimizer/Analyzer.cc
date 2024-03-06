@@ -39,6 +39,15 @@ std::unique_ptr<mlir::OperationPass<mlir::ModuleOp>> collectOutermostLoopPass(
 
 namespace KernelCodeGen {
 
+int Analyzer::getUsersNumber(mlir::Value::user_range users) {
+  int count = 0;
+  for (auto user : users) {
+    count += 1;
+  }
+  return count;
+}
+
+
 std::vector<mlir::AffineForOp> Analyzer::collectOutermostLoop(mlir::ModuleOp& module) {
   ConstPassGuard constPassGuard;
   mlir::PassManager pm(module.getContext());
@@ -48,6 +57,53 @@ std::vector<mlir::AffineForOp> Analyzer::collectOutermostLoop(mlir::ModuleOp& mo
     llvm::errs() << "Collects outermost loop failed.\n";
   }
   return res;
+}
+
+std::vector<mlir::func::FuncOp> Analyzer::collectFunctions(mlir::ModuleOp& module, const std::string& targetFuncName) {
+  std::vector<mlir::func::FuncOp> result;
+  module.walk<mlir::WalkOrder::PreOrder>([&](mlir::func::FuncOp funcOp) {
+    // auto funcAttrName = funcOp.getFunctionTypeAttrName(); ///<function_type
+    auto funcAttrName = funcOp.getSymName();
+    auto funcName = funcAttrName.str();
+    if (targetFuncName == "") result.push_back(funcOp);
+    else if (funcName.find(targetFuncName) != std::string::npos) {
+      result.push_back(funcOp);
+    }
+  });
+  return std::move(result);
+}
+
+mlir::func::FuncOp Analyzer::getTargetFunction(mlir::ModuleOp& module, const std::string& targetFuncName) {
+  mlir::func::FuncOp res;
+  bool found = false;
+  module.walk<mlir::WalkOrder::PreOrder>([&](mlir::func::FuncOp funcOp) {
+    auto funcAttrName = funcOp.getSymName();
+    auto funcName = funcAttrName.str();
+    if (funcName == targetFuncName) {
+      res = funcOp;
+      found = true;
+    }
+  });
+  if (!found) {
+    llvm::errs() << "Failed get the function which name is " << targetFuncName << "\n";
+  }
+  return res;
+}
+
+std::vector<mlir::AffineForOp> Analyzer::collectFuncLoops(mlir::func::FuncOp funcOp) {
+  std::vector<mlir::AffineForOp> res;
+  funcOp.walk<mlir::WalkOrder::PreOrder>([&](mlir::AffineForOp forOp) {
+    res.push_back(forOp);
+  });
+  return std::move(res);
+}
+
+std::vector<mlir::func::CallOp> Analyzer::collectFuncCalls(mlir::ModuleOp& module) {
+  std::vector<mlir::func::CallOp> res;
+  module.walk<mlir::WalkOrder::PreOrder>([&](mlir::func::CallOp callOp) {
+    res.push_back(callOp);
+  });
+  return std::move(res);
 }
 
 }

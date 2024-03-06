@@ -597,17 +597,6 @@ mlir::AffineParallelOp Rewriter::parallel(const std::vector<mlir::AffineForOp>& 
   return parallelOp;
 }
 
-mlir::Value Rewriter::alloc_buffer(mlir::AffineParallelOp parallelLevel, MemorySpace ms, 
-                         const std::vector<int64_t> shape_, mlir::Type dtype) {
-  llvm::ArrayRef<int64_t> shape (shape_);
-  mlir::MemRefType tensorShape = mlir::MemRefType::get(
-    shape, dtype, {}, static_cast<int>(ms));
-  
-  mlir::OpBuilder builder(parallelLevel->getContext());
-  builder.setInsertionPointToStart(parallelLevel.getBody());
-  return builder.create<mlir::memref::AllocOp>(builder.getUnknownLoc(), tensorShape)->getResult(0);
-}
-
 // dst is register.
 mlir::AffineForOp Rewriter::read(mlir::Value src, mlir::Value dst, mlir::AffineMap map, 
                                    llvm::SmallVector<mlir::Value> operands, int64_t width,
@@ -616,6 +605,29 @@ mlir::AffineForOp Rewriter::read(mlir::Value src, mlir::Value dst, mlir::AffineM
   auto dstMap = mlir::AffineMap::get(/*dimCount*/1, 0, llvm::ArrayRef<mlir::AffineExpr>(dim0 * width), 
                                      compute_at.getContext());
   auto builder = getBuilder(compute_at, pos);
+  auto dstType = dst.getType().dyn_cast<mlir::MemRefType>();
+  // registers is always 1 dim.
+  auto loadTimes = dstType.getShape()[0] / width;
+  auto loadBody = [&](mlir::OpBuilder &builder, mlir::Location nestedLoc, mlir::Value iv,
+                      mlir::ValueRange iterArgs) {
+    mlir::OpBuilder::InsertionGuard nestedGuard(builder);
+    // loop iterator is the last operand.
+    operands.push_back(iv);
+    auto vectorType = mlir::VectorType::get(width, dstType.getElementType());
+    auto ld = builder.create<mlir::AffineVectorLoadOp>(builder.getUnknownLoc(), vectorType, src, map, operands);
+    auto st = builder.create<mlir::AffineVectorStoreOp>(builder.getUnknownLoc(), ld.getResult(), dst, dstMap, mlir::ValueRange({iv}));
+    builder.create<mlir::AffineYieldOp>(builder.getUnknownLoc());
+  };
+  auto load = builder.create<mlir::AffineForOp>(builder.getUnknownLoc(), 
+     0, loadTimes, 1, /*iterArgs=lvm::None*/ mlir::ValueRange({}), loadBody);
+  return load;
+}
+
+mlir::AffineForOp Rewriter::read(mlir::OpBuilder& builder, mlir::Value src, mlir::Value dst, 
+    mlir::AffineMap map, llvm::SmallVector<mlir::Value> operands, int64_t width) {
+  auto dim0 = builder.getAffineDimExpr(0);
+  auto dstMap = mlir::AffineMap::get(/*dimCount*/1, 0, llvm::ArrayRef<mlir::AffineExpr>(dim0 * width), 
+                                     builder.getContext());
   auto dstType = dst.getType().dyn_cast<mlir::MemRefType>();
   // registers is always 1 dim.
   auto loadTimes = dstType.getShape()[0] / width;
@@ -679,6 +691,50 @@ mlir::AffineForOp Rewriter::write(mlir::Value src, mlir::Value dst, mlir::Affine
      0, storeTimes, 1, /*iterArgs=lvm::None*/ mlir::ValueRange({}), storeBody);
   return store;
 
+}
+
+// src is register
+mlir::AffineForOp Rewriter::write(mlir::OpBuilder& builder, mlir::Value src, mlir::Value dst, 
+    mlir::AffineMap map, llvm::SmallVector<mlir::Value> operands, int64_t width) {
+  auto dimsNum = map.getNumDims();
+  auto dim0 = builder.getAffineDimExpr(0);
+  auto dim1 = builder.getAffineDimExpr(1);
+  bool twoLoop = abs(dimsNum - operands.size()) == 2;
+  auto srcMap = !twoLoop ? 
+                mlir::AffineMap::get(/*dimCount*/1, 0, llvm::ArrayRef<mlir::AffineExpr>(dim0 * width), builder.getContext()) :
+                mlir::AffineMap::get(/*dimCount*/2, 0, llvm::ArrayRef<mlir::AffineExpr>(dim0 * width + dim1), builder.getContext());
+  auto srcType = src.getType().dyn_cast<mlir::MemRefType>();
+  // registers is always 1 dim.
+  auto storeTimes = srcType.getShape()[0] / width;
+  auto storeBody = [&](mlir::OpBuilder &builder, mlir::Location nestedLoc, mlir::Value iv,
+                      mlir::ValueRange iterArgs) {
+    mlir::OpBuilder::InsertionGuard nestedGuard(builder);
+    // loop iterator is the last operand.
+    operands.push_back(iv);
+    if (twoLoop) {
+      auto innerBody = [&](mlir::OpBuilder &builder, mlir::Location nestedLoc, mlir::Value iv_inner,
+                        mlir::ValueRange iterArgs) {
+        mlir::OpBuilder::InsertionGuard nestedGuard(builder);
+        // loop iterator is the last operand.
+        operands.push_back(iv_inner);
+        auto vectorType = mlir::VectorType::get(1, srcType.getElementType());
+        auto ld = builder.create<mlir::AffineVectorLoadOp>(builder.getUnknownLoc(), vectorType, src, srcMap, mlir::ValueRange({iv, iv_inner}));
+        auto st = builder.create<mlir::AffineVectorStoreOp>(builder.getUnknownLoc(), ld.getResult(), dst, map, operands);
+        builder.create<mlir::AffineYieldOp>(builder.getUnknownLoc());
+      };
+      auto storeInner = builder.create<mlir::AffineForOp>(builder.getUnknownLoc(), 
+          0, width, 1, /*iterArgs=lvm::None*/ mlir::ValueRange({}), innerBody);
+      builder.create<mlir::AffineYieldOp>(builder.getUnknownLoc());
+    } else { 
+      auto vectorType = mlir::VectorType::get(width, srcType.getElementType());
+      auto ld = builder.create<mlir::AffineVectorLoadOp>(builder.getUnknownLoc(), vectorType, src, srcMap, mlir::ValueRange({iv}));
+      auto st = builder.create<mlir::AffineVectorStoreOp>(builder.getUnknownLoc(), ld.getResult(), dst, map, operands);
+      builder.create<mlir::AffineYieldOp>(builder.getUnknownLoc());
+    }
+  };
+  auto store = builder.create<mlir::AffineForOp>(builder.getUnknownLoc(), 
+     0, storeTimes, 1, /*iterArgs=lvm::None*/ mlir::ValueRange({}), storeBody);
+  return store;
 }
 
 mlir::gpu::BarrierOp Rewriter::barrier(mlir::AffineForOp compute_at, Position pos) {
@@ -1584,6 +1640,55 @@ void Rewriter::change_double_buffer(mlir::AffineForOp scope, mlir::Value buffer)
   });
   ///TODO: support more operations for change double buffer.
   
+}
+
+void Rewriter::set_buffer(mlir::OpBuilder& builder, mlir::Value mem, mlir::Value targetValue) {
+  auto type = mem.getType().dyn_cast<mlir::MemRefType>();
+  auto shape = type.getShape();
+  mlir::SmallVector<int64_t, 8> lowerBounds(shape.size(), /*Value=*/0);
+  mlir::SmallVector<int64_t, 8> steps(shape.size(), /*Value=*/1);
+  mlir::SmallVector<int64_t, 8> upperBounds(shape.begin(), shape.end());
+  mlir::buildAffineLoopNest(
+    builder, builder.getUnknownLoc(), lowerBounds, upperBounds, steps,
+    [&](mlir::OpBuilder &nestedBuilder, mlir::Location loc, mlir::ValueRange ivs) {
+      nestedBuilder.create<mlir::AffineStoreOp>(nestedBuilder.getUnknownLoc(), 
+        targetValue, mem, ivs);
+    }
+  );
+}
+
+mlir::AffineForOp Rewriter::create_constant_loop(mlir::OpBuilder& builder, int64_t lowerBound, int64_t upperBound, int64_t step) {
+  auto loop_body = [&](mlir::OpBuilder &kBuilder, mlir::Location kLoc, mlir::Value iv,
+                      mlir::ValueRange iterArgs) {
+    kBuilder.create<mlir::AffineYieldOp>(kBuilder.getUnknownLoc());
+  };
+  auto loop = builder.create<mlir::AffineForOp>(builder.getUnknownLoc(), 
+    lowerBound, upperBound, step, /*iterArgs=llvm::None*/ llvm::None, loop_body);
+  return loop;
+}
+
+mlir::AffineForOp Rewriter::outer_product(mlir::OpBuilder& builder, mlir::Value tileC, 
+  mlir::Value fragA, mlir::Value fragB, int64_t m, int64_t n) {
+  auto outerLoop = Rewriter::create_constant_loop(builder, 0, m, 1);
+  auto ip = builder.saveInsertionPoint();
+  builder.setInsertionPointToStart(outerLoop.getBody());
+  auto innerLoop = Rewriter::create_constant_loop(builder, 0, n, 1);
+  builder.setInsertionPointToStart(innerLoop.getBody());
+  {
+    auto i = outerLoop.getInductionVar();
+    auto j = innerLoop.getInductionVar();
+    auto ld_a = builder.create<mlir::AffineLoadOp>(
+      builder.getUnknownLoc(), fragA, mlir::ValueRange({i}));
+    auto ld_b = builder.create<mlir::AffineLoadOp>(
+      builder.getUnknownLoc(), fragB, mlir::ValueRange({j}));
+    auto ld_c = builder.create<mlir::AffineLoadOp>(
+      builder.getUnknownLoc(), tileC, mlir::ValueRange({i, j}));
+    auto mul = builder.create<mlir::arith::MulFOp>(builder.getUnknownLoc(), ld_a, ld_b);
+    auto add = builder.create<mlir::arith::AddFOp>(builder.getUnknownLoc(), mul, ld_c);
+    builder.create<mlir::AffineStoreOp>(builder.getUnknownLoc(), add.getResult(), tileC, mlir::ValueRange({i, j}));
+     
+  }
+  builder.restoreInsertionPoint(ip);
 }
 
 }

@@ -1,7 +1,10 @@
 .idea
 .vscode
 .backup
+benchmark
 3rdParty
 bin
 build
 doc/CodeDoc.md
+test/matmul
+test/flash-attn
